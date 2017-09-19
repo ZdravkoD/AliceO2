@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -12,10 +12,9 @@
 /// \file    GeometryManager.cxx
 /// \author  Jeremi Niedziela
 
-#include "GeometryManager.h"
+#include "EventVisualisationBase/GeometryManager.h"
 
-#include "Initializer.h"
-#include "MultiView.h"
+#include "EventVisualisationBase/ConfigurationManager.h"
 
 #include <TFile.h>
 #include <TGLViewer.h>
@@ -31,65 +30,36 @@ using namespace std;
 
 namespace o2  {
 namespace EventVisualisation {
-
-GeometryManager* GeometryManager::sInstance = nullptr;
   
-GeometryManager* GeometryManager::getInstance()
+GeometryManager& GeometryManager::getInstance()
 {
-  if(!sInstance){
-    new GeometryManager();
-  }
-  return sInstance;
-}
- 
-void GeometryManager::drawGeometryForDetector(string detectorName,bool threeD, bool rPhi, bool zRho)
-{
-  TEveGeoShape *shape = getGeometryForDetector(detectorName);
-  registerGeometry(shape, threeD, rPhi, zRho);
-}
-  
-void GeometryManager::destroyAllGeometries()
-{
-  for(int i=0;i<mGeomVector.size();++i)
-  {
-    if(mGeomVector[i])
-    {
-      mGeomVector[i]->DestroyElements();
-      gEve->RemoveElement(mGeomVector[i],MultiView::getInstance()->getScene(MultiView::Scene3dGeom));
-      mGeomVector[i] = nullptr;
-    }
-  }
-}
-  
-GeometryManager::GeometryManager()
-{
-  cout<<"Creating geometry manager"<<endl;
-  sInstance = this;
-}
-
-GeometryManager::~GeometryManager()
-{
+  static GeometryManager instance;
+  return instance;
 }
 
 TEveGeoShape* GeometryManager::getGeometryForDetector(string detectorName)
 {
   TEnv settings;
-  Initializer::getConfig(settings);
- 
+  ConfigurationManager::getInstance().getConfig(settings);
+
   // read geometry path from config file
   string geomPath = settings.GetValue("simple.geom.path","");
+
+  // TODO:
+  // we need a way to set O2 installation path here
+  //
   const string o2basePathSpecifier = "${ALICE_ROOT}";
-  const string o2basePath = "";//gSystem->Getenv("ALICE_ROOT");
+  const string o2basePath = "";//= gSystem->Getenv("ALICE_ROOT");
   const size_t o2pos = geomPath.find(o2basePathSpecifier);
 
   if(o2pos != string::npos){
     geomPath.replace(o2pos,o2pos+o2basePathSpecifier.size(),o2basePath);
   }
-  
+
   // load ROOT file with geometry
   TFile *f = TFile::Open(Form("%s/simple_geom_%s.root",geomPath.c_str(),detectorName.c_str()));
   if(!f){
-    cout<<"GeometryManager::GetSimpleGeom -- no file with geometry found!"<<endl;
+    cout<<"GeometryManager::GetSimpleGeom -- no file with geometry found for: "<<detectorName<<"!"<<endl;
     return nullptr;
   }
   
@@ -157,34 +127,6 @@ void GeometryManager::drawDeep(TEveGeoShape *geomShape,Color_t color, Char_t tra
     if(strcmp(geomShape->GetElementName(),"PHOS_5")==0){// hack for PHOS module which is not installed
       geomShape->SetRnrSelf(false);
     }
-  }
-}
-
-void GeometryManager::registerGeometry(TEveGeoShape *geom, bool threeD, bool rPhi, bool zRho)
-{
-  if(!geom){
-    cout<<"GeometryManager::InitSimpleGeom -- geometry is NULL!"<<endl;
-    return;
-  }
-  mGeomVector.push_back(geom);
-  
-  auto multiView = MultiView::getInstance();
-  TEveProjectionManager *projection;
-  
-  if(threeD){
-    gEve->AddElement(geom,multiView->getScene(MultiView::Scene3dGeom));
-  }
-  if(rPhi){
-    projection = multiView->getProjection(MultiView::ProjectionRphi);
-    projection->SetCurrentDepth(-10);
-    projection->ImportElements(geom, multiView->getScene(MultiView::SceneRPhiGeom));
-    projection->SetCurrentDepth(0);
-  }
-  if(zRho){
-    projection = multiView->getProjection(MultiView::ProjectionZrho);
-    projection->SetCurrentDepth(-10);
-    projection->ImportElements(geom, multiView->getScene(MultiView::SceneZrhoGeom));
-    projection->SetCurrentDepth(0);
   }
 }
   

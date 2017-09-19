@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -50,7 +50,7 @@ mSegmentation(seg)
   
   SetUniqueID(mSegmentation->GetUniqueID());
   
-  SetName(Form("MFT_H_%d",mftGeom->getHalfMFTID(GetUniqueID())));
+  SetName(Form("MFT_H_%d",mftGeom->getHalfID(GetUniqueID())));
     
   Info("HalfDetector",Form("Creating : %s ",GetName()),0,0);
 
@@ -75,7 +75,7 @@ void HalfDetector::createHalfDisks()
   for (Int_t iDisk = 0 ; iDisk < mSegmentation->getNHalfDisks(); iDisk++) {
     HalfDiskSegmentation * halfDiskSeg = mSegmentation->getHalfDisk(iDisk);    
     auto * halfDisk = new HalfDisk(halfDiskSeg);
-    Int_t halfDiskId = Geometry::instance()->getHalfDiskID(halfDiskSeg->GetUniqueID());
+    Int_t halfDiskId = Geometry::instance()->getDiskID(halfDiskSeg->GetUniqueID());
     mHalfVolume->AddNode(halfDisk->getVolume(),halfDiskId,halfDiskSeg->getTransformation());
     delete halfDisk;
   }

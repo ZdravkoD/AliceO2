@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -111,19 +111,19 @@ namespace TPC {
           const GlobalPadNumber padPos    = mapper.globalPadNumber(PadPos(rowInSector, digi.getPadPos().getPad()));
           const PadCentre& padCentre      = mapper.padCentre(padPos);
 
-          LocalPosition3D posLoc(padCentre.getX(), padCentre.getY(), pos.getZ());
+          LocalPosition3D posLoc(padCentre.X(), padCentre.Y(), pos.Z());
 
           /// As we're in sector 4, we can test the local coordinates by swapping x & y (again taking into account the mirroring between A & C side)
-          BOOST_CHECK_CLOSE(posLoc.getX(), pos.getY(), 1E-12);
-          BOOST_CHECK_CLOSE(posLoc.getY(), signTest[j]*pos.getX(), 1E-12);
+          BOOST_CHECK_CLOSE(posLoc.X(), pos.Y(), 1E-12);
+          BOOST_CHECK_CLOSE(posLoc.Y(), signTest[j]*pos.X(), 1E-12);
 
           GlobalPosition3D posGlob = Mapper::LocalToGlobal(posLoc, cru.sector());
 
           /// Check whether the global coordinates match
           ///
           /// \todo here there should be no mirroring necessary!
-          BOOST_CHECK_CLOSE((-1.f)*signTest[j]*pos.getX(), posGlob.getX(), 1E-12);
-          BOOST_CHECK_CLOSE(pos.getY(), posGlob.getY(), 1E-12);
+          BOOST_CHECK_CLOSE((-1.f)*signTest[j]*pos.X(), posGlob.X(), 1E-12);
+          BOOST_CHECK_CLOSE(pos.Y(), posGlob.Y(), 1E-12);
 
         }
       }

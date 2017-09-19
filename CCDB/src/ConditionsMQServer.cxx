@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -48,19 +48,19 @@ void ConditionsMQServer::InitTask()
 {
   ParameterMQServer::InitTask();
   // Set first input
-  if (GetProperty(FirstInputType, "") == "OCDB") {
-    mCdbManager->setDefaultStorage(GetProperty(FirstInputName, "").c_str());
+  if (GetFirstInputType() == "OCDB") {
+    mCdbManager->setDefaultStorage(GetFirstInputName().c_str());
   }
 
   // Set second input
-  if (GetProperty(SecondInputType, "") == "OCDB") {
-    mCdbManager->setDefaultStorage(GetProperty(SecondInputName, "").c_str());
+  if (GetSecondInputType() == "OCDB") {
+    mCdbManager->setDefaultStorage(GetSecondInputName().c_str());
   }
 
   // Set output
-  if (GetProperty(OutputName, "") != "") {
-    if (GetProperty(OutputType, "") == "OCDB") {
-      mCdbManager->setDefaultStorage(GetProperty(OutputName, "").c_str());
+  if (GetOutputName() != "") {
+    if (GetOutputType() == "OCDB") {
+      mCdbManager->setDefaultStorage(GetOutputName().c_str());
     }
   }
 }
@@ -168,7 +168,7 @@ void ConditionsMQServer::getFromOCDB(std::string key)
   Condition* aCondition = nullptr;
 
   mCdbManager->setRun(runId);
-  aCondition = mCdbManager->getObject(IdPath(identifier), runId);
+  aCondition = mCdbManager->getCondition(IdPath(identifier), runId);
 
   if (aCondition) {
     LOG(DEBUG) << "Sending following parameter to the client:";

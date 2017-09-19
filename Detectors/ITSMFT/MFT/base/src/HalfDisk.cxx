@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -56,11 +56,10 @@ HalfDisk::HalfDisk(HalfDiskSegmentation *segmentation):TNamed(segmentation->GetN
   LOG(DEBUG1) << "HalfDisk " << Form("creating half-disk: %s Unique ID = %d ", GetName()) << FairLogger::endl;
 
   mHalfDiskVolume = new TGeoVolumeAssembly(GetName());
-  
-  // Building MFT Support and PCBs
   /*  
+  // Building MFT Support and PCBs
   mSupport = new Support();
-  TGeoVolumeAssembly * mftSupport = mSupport->createVolume(mftGeom->getHalfMFTID(GetUniqueID()),mftGeom->getHalfDiskID(GetUniqueID()));  
+  TGeoVolumeAssembly * mftSupport = mSupport->createVolume(mftGeom->getHalfID(GetUniqueID()),mftGeom->getDiskID(GetUniqueID()));  
   mHalfDiskVolume->AddNode(mftSupport,1);
   */
   // Building Heat Exchanger Between faces
@@ -91,7 +90,7 @@ TGeoVolumeAssembly * HalfDisk::createHeatExchanger()
 
   mHeatExchanger = new HeatExchanger();
   
-  TGeoVolumeAssembly * vol = mHeatExchanger->create(mftGeom->getHalfMFTID(GetUniqueID()), mftGeom->getHalfDiskID(GetUniqueID()));
+  TGeoVolumeAssembly * vol = mHeatExchanger->create(mftGeom->getHalfID(GetUniqueID()), mftGeom->getDiskID(GetUniqueID()));
   
   return vol;
   

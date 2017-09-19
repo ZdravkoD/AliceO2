@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -17,7 +17,7 @@
 #define BOOST_TEST_DYN_LINK
 #include <boost/test/unit_test.hpp>
 #include "TPCSimulation/ElectronTransport.h"
-#include "TPCSimulation/Constants.h"
+#include "TPCBase/ParameterGas.h"
 
 #include "TH1D.h"
 #include "TF1.h"
@@ -33,10 +33,11 @@ namespace TPC {
   /// Precision: 0.5 %.
   BOOST_AUTO_TEST_CASE(ElectronDiffusion_test1)
   {
+    const static ParameterGas &gasParam = ParameterGas::defaultInstance();
     const GlobalPosition3D posEle(10.f, 10.f, 250.f);
-    TH1D hTestDiffX("hTestDiffX", "", 500, posEle.getX()-10., posEle.getX()+10.);
-    TH1D hTestDiffY("hTestDiffY", "", 500, posEle.getY()-10., posEle.getY()+10.);
-    TH1D hTestDiffZ("hTestDiffZ", "", 500, posEle.getZ()-10., posEle.getZ()+10.);
+    TH1D hTestDiffX("hTestDiffX", "", 500, posEle.X()-10., posEle.X()+10.);
+    TH1D hTestDiffY("hTestDiffY", "", 500, posEle.Y()-10., posEle.Y()+10.);
+    TH1D hTestDiffZ("hTestDiffZ", "", 500, posEle.Z()-10., posEle.Z()+10.);
     
     TF1 gausX("gausX", "gaus");
     TF1 gausY("gausY", "gaus");
@@ -46,9 +47,9 @@ namespace TPC {
     
     for(int i=0; i<500000; ++i) {
       const GlobalPosition3D posEleDiff = electronTransport.getElectronDrift(posEle);
-      hTestDiffX.Fill(posEleDiff.getX());
-      hTestDiffY.Fill(posEleDiff.getY());
-      hTestDiffZ.Fill(posEleDiff.getZ());
+      hTestDiffX.Fill(posEleDiff.X());
+      hTestDiffY.Fill(posEleDiff.Y());
+      hTestDiffZ.Fill(posEleDiff.Z());
     }
 
     hTestDiffX.Fit("gausX", "Q0");
@@ -56,13 +57,13 @@ namespace TPC {
     hTestDiffZ.Fit("gausZ", "Q0");
    
     // check whether the mean of the gaussian fit matches the starting point
-    BOOST_CHECK_CLOSE(gausX.GetParameter(1), posEle.getX(), 0.5);
-    BOOST_CHECK_CLOSE(gausY.GetParameter(1), posEle.getY(), 0.5);
-    BOOST_CHECK_CLOSE(gausZ.GetParameter(1), posEle.getZ(), 0.5);
+    BOOST_CHECK_CLOSE(gausX.GetParameter(1), posEle.X(), 0.5);
+    BOOST_CHECK_CLOSE(gausY.GetParameter(1), posEle.Y(), 0.5);
+    BOOST_CHECK_CLOSE(gausZ.GetParameter(1), posEle.Z(), 0.5);
     
     // check whether the width of the distribution matches the expected one
-    float sigT = std::sqrt(posEle.getZ()) * DIFFT;
-    float sigL = std::sqrt(posEle.getZ()) * DIFFL;
+    const float sigT = std::sqrt(posEle.Z()) * gasParam.getDiffT();
+    const float sigL = std::sqrt(posEle.Z()) * gasParam.getDiffL();
         
     BOOST_CHECK_CLOSE(gausX.GetParameter(2), sigT, 0.5);
     BOOST_CHECK_CLOSE(gausY.GetParameter(2), sigT, 0.5);
@@ -77,10 +78,11 @@ namespace TPC {
   /// Precision: 0.5 %.
   BOOST_AUTO_TEST_CASE(ElectronDiffusion_test2)
   {
+    const static ParameterGas &gasParam = ParameterGas::defaultInstance();
     const GlobalPosition3D posEle(1.f, 1.f, 1.f);
-    TH1D hTestDiffX("hTestDiffX", "", 500, posEle.getX()-1., posEle.getX()+1.);
-    TH1D hTestDiffY("hTestDiffY", "", 500, posEle.getY()-1., posEle.getY()+1.);
-    TH1D hTestDiffZ("hTestDiffZ", "", 500, posEle.getZ()-1., posEle.getZ()+1.);
+    TH1D hTestDiffX("hTestDiffX", "", 500, posEle.X()-1., posEle.X()+1.);
+    TH1D hTestDiffY("hTestDiffY", "", 500, posEle.Y()-1., posEle.Y()+1.);
+    TH1D hTestDiffZ("hTestDiffZ", "", 500, posEle.Z()-1., posEle.Z()+1.);
     
     TF1 gausX("gausX", "gaus");
     TF1 gausY("gausY", "gaus");
@@ -90,9 +92,9 @@ namespace TPC {
     
     for(int i=0; i<500000; ++i) {
       const GlobalPosition3D posEleDiff = electronTransport.getElectronDrift(posEle);
-      hTestDiffX.Fill(posEleDiff.getX());
-      hTestDiffY.Fill(posEleDiff.getY());
-      hTestDiffZ.Fill(posEleDiff.getZ());
+      hTestDiffX.Fill(posEleDiff.X());
+      hTestDiffY.Fill(posEleDiff.Y());
+      hTestDiffZ.Fill(posEleDiff.Z());
     }
     
     hTestDiffX.Fit("gausX", "Q0");
@@ -100,14 +102,14 @@ namespace TPC {
     hTestDiffZ.Fit("gausZ", "Q0");
    
     // check whether the mean of the gaussian fit matches the starting point
-    BOOST_CHECK_CLOSE(gausX.GetParameter(1), posEle.getX(), 0.5);
-    BOOST_CHECK_CLOSE(gausY.GetParameter(1), posEle.getY(), 0.5);
-    BOOST_CHECK_CLOSE(gausZ.GetParameter(1), posEle.getZ(), 0.5);
+    BOOST_CHECK_CLOSE(gausX.GetParameter(1), posEle.X(), 0.5);
+    BOOST_CHECK_CLOSE(gausY.GetParameter(1), posEle.Y(), 0.5);
+    BOOST_CHECK_CLOSE(gausZ.GetParameter(1), posEle.Z(), 0.5);
     
     // check whether the width of the distribution matches the expected one
-    BOOST_CHECK_CLOSE(gausX.GetParameter(2), DIFFT, 0.5);
-    BOOST_CHECK_CLOSE(gausY.GetParameter(2), DIFFT, 0.5);
-    BOOST_CHECK_CLOSE(gausZ.GetParameter(2), DIFFL, 0.5);
+    BOOST_CHECK_CLOSE(gausX.GetParameter(2), gasParam.getDiffT(), 0.5);
+    BOOST_CHECK_CLOSE(gausY.GetParameter(2), gasParam.getDiffT(), 0.5);
+    BOOST_CHECK_CLOSE(gausZ.GetParameter(2), gasParam.getDiffL(), 0.5);
   }
   
   /// \brief Test of the isElectronAttachment function
@@ -117,18 +119,19 @@ namespace TPC {
   /// Precision: 0.1 %.
   BOOST_AUTO_TEST_CASE(ElectronAttatchment_test_1)
   {
+    const static ParameterGas &gasParam = ParameterGas::defaultInstance();
     static ElectronTransport electronTransport;
 
-    float driftTime = 100.f;
+    const float driftTime = 100.f;
     float lostElectrons = 0;
-    float nEvents = 500000;
+    const float nEvents = 500000;
     for(int i=0; i<nEvents; ++i) {
       if(electronTransport.isElectronAttachment(driftTime)) {
         ++ lostElectrons;
       }
     }
 
-    BOOST_CHECK_CLOSE(lostElectrons/nEvents, ATTCOEF * OXYCONT * driftTime, 0.1); 
+    BOOST_CHECK_CLOSE(lostElectrons/nEvents, gasParam.getAttachmentCoefficient() * gasParam.getOxygenContent() * driftTime, 0.1);
   }
 }
 }

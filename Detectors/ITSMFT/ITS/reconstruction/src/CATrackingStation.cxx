@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -35,7 +35,7 @@
 #include <TGeoMatrix.h>
 #include <TClonesArray.h>
 
-#include "ITSMFTSimulation/Point.h"
+#include "ITSMFTSimulation/Hit.h"
 #include "ITSBase/GeometryTGeo.h"
 #include "DetectorsBase/Utils.h"
 
@@ -43,7 +43,7 @@
 using namespace o2::ITS::CA;
 using o2::Base::Constants::k2PI;
 using o2::Base::Utils::BringTo02Pi;
-using o2::ITSMFT::Point;
+using o2::ITSMFT::Hit;
 
 TrackingStation::TrackingStation() :
   mID(-1)
@@ -116,7 +116,7 @@ void TrackingStation::Init(TClonesArray* points, o2::ITS::GeometryTGeo* geo) {
   mNClusters = points->GetEntriesFast();
   if(mNClusters == 0) return;
   mSortedClInfo.reserve(mNClusters);
-  mVIDOffset = ((Point*)points->UncheckedAt(0))->GetDetectorID();
+  mVIDOffset = ((Hit*)points->UncheckedAt(0))->GetDetectorID();
   // prepare detectors info
   int detID = -1;
   mIndex.resize(geo->getNumberOfChipsPerLayer(mID),-1);
@@ -126,28 +126,38 @@ void TrackingStation::Init(TClonesArray* points, o2::ITS::GeometryTGeo* geo) {
   mSortedClInfo.reserve(mNClusters);
   ClsInfo_t cl;
   for (int iCl = 0; iCl < points->GetEntriesFast(); ++iCl) { //Fill this layer with detectors
-    Point* c = (Point*)points->UncheckedAt(iCl);
+    Hit* c = (Hit*)points->UncheckedAt(iCl);
     if (detID == c->GetDetectorID()) {
       continue;
     }
     detID = c->GetDetectorID();
     ITSDetInfo_t det;
     det.index = iCl;
-    //
-    TGeoHMatrix m;
-    geo->getOriginalMatrix(detID,m);
-    //
     mIndex[detID - mVIDOffset] = mDetectors.size();
-    const TGeoHMatrix *tm = geo->getMatrixT2L(detID);
-    m.Multiply(tm);
-    double txyz[3] = {0.,0.,0.}, xyz[3] = {0.,0.,0.};
-    m.LocalToMaster(txyz,xyz);
-    det.xTF = sqrt(xyz[0] * xyz[0] + xyz[1] * xyz[1]);
 
-    det.phiTF = atan2(xyz[1],xyz[0]);
+    //
+    /*
+      RS: using origL2G * T2L matrix will add bias, sine origL2G is for chip, while T2L is for misaligned sensor
+      TGeoHMatrix m;
+      geo->getOriginalMatrix(detID,m);
+      //
+      const TGeoHMatrix *tm = &geo->getMatrixT2L(detID);
+      m.Multiply(tm);
+      double txyz[3] = {0.,0.,0.}, xyz[3] = {0.,0.,0.};
+      m.LocalToMaster(txyz,xyz);
+      det.xTF = sqrt(xyz[0] * xyz[0] + xyz[1] * xyz[1]);
+    */
+    Point3D<float> loc(0.f,0.f,0.f);
+    auto glo = geo->getMatrixSensor(detID)(loc);
+
+    det.xTF = det.xTF = glo.Rho();
+    det.phiTF = glo.Phi();
     det.sinTF = sinf(det.phiTF);
     det.cosTF = cosf(det.phiTF);
     //
+    // RS: did not understand this routine - just 1st HIT of the chip is selected?
+    // to discuss with Max
+    /*
     // compute the real radius (with misalignment)
     TGeoHMatrix mmisal(*(geo->getMatrix(detID)));
     mmisal.Multiply(tm);
@@ -157,6 +167,7 @@ void TrackingStation::Init(TClonesArray* points, o2::ITS::GeometryTGeo* geo) {
     mmisal.LocalToMaster(txyz,xyz);
     det.xTFmisal = sqrt(xyz[0] * xyz[0] + xyz[1] * xyz[1]);
     mDetectors.push_back(det);
+    */
     //
     c->GetStartPosition(cl.x,cl.y,cl.z);
     cl.r = sqrt(cl.x*cl.x + cl.y*cl.y);

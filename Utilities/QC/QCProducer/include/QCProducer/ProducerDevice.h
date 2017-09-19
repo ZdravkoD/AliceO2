@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -26,7 +26,7 @@ namespace qc
 class ProducerDevice : public FairMQDevice
 {
  public:
-  ProducerDevice(const char* producerId, const int numIoThreads, std::shared_ptr<Producer>& producer);
+  ProducerDevice(const char* producerId, std::shared_ptr<Producer>& producer);
   ~ProducerDevice() override = default;
 
   static void deleteTMessage(void* data, void* hint);

@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -11,15 +11,20 @@
 #ifndef ALICEO2_EMCAL_GEOMETRY_H_
 #define ALICEO2_EMCAL_GEOMETRY_H_
 
-#include <TArrayD.h>
+#include <exception>
+#include <string>
+#include <tuple>
+#include <vector>
+
+#include <RStringView.h>
 #include <TGeoMatrix.h>
-#include <TList.h>
 #include <TNamed.h>
 #include <TParticle.h>
 #include <TVector3.h>
 
 #include "EMCALBase/Constants.h"
-#include "EMCALBase/EMCGeometry.h"
+#include "EMCALBase/GeometryBase.h"
+#include "MathUtils/Cartesian3D.h"
 
 namespace o2
 {
@@ -27,17 +32,9 @@ namespace EMCAL
 {
 class ShishKebabTrd1Module;
 
-class Geometry : public TNamed
+class Geometry
 {
  public:
-  enum fEMCSMType {
-    EMCAL_STANDARD = 0,
-    EMCAL_HALF = 1,
-    EMCAL_THIRD = 2,
-    DCAL_STANDARD = 3,
-    DCAL_EXT = 4
-  }; // possible SM Type
-
   ///
   /// Default constructor.
   /// It must be kept public for root persistency purposes,
@@ -52,7 +49,7 @@ class Geometry : public TNamed
   /// title \param mcname: Geant3/4, Flukla, needed for settings of transport (check) \param mctitle: Geant4 physics
   /// list (check)
   ///
-  Geometry(const Text_t* name, const Text_t* title = "", const Text_t* mcname = "", const Text_t* mctitle = "");
+  Geometry(const std::string_view name, const std::string_view mcname = "", const std::string_view mctitle = "");
 
   ///
   /// Copy constructor.
@@ -62,7 +59,7 @@ class Geometry : public TNamed
   ///
   /// Destructor.
   ///
-  ~Geometry() override;
+  ~Geometry();
 
   ///
   /// Assign operator.
@@ -84,8 +81,8 @@ class Geometry : public TNamed
   /// title \param mcname: Geant3/4, Fluka, needed for settings of transport (check) \param mctitle: Geant4 physics list
   /// (check)
   ///
-  static Geometry* GetInstance(const Text_t* name, const Text_t* title = "", const Text_t* mcname = "TGeant3",
-                               const Text_t* mctitle = "");
+  static Geometry* GetInstance(const std::string_view name, const std::string_view mcname = "TGeant3",
+                               const std::string_view mctitle = "");
 
   ///
   /// Instanciate geometry depending on the run number. Mostly used in analysis and MC anchors.
@@ -97,12 +94,27 @@ class Geometry : public TNamed
   /// \param mcname: Geant3/4, Fluka, needed for settings of transport (check). Not really needed to be specified.
   /// \param mctitle:  Geant4 physics list (check). Not really needed to be specified.
   ///
-  static Geometry* GetInstanceFromRunNumber(Int_t runNumber, TString geoName = "", const Text_t* mcname = "TGeant3",
-                                            const Text_t* mctitle = "");
+  static Geometry* GetInstanceFromRunNumber(Int_t runNumber, const std::string_view = "",
+                                            const std::string_view mcname = "TGeant3",
+                                            const std::string_view mctitle = "");
+
+  ///
+  /// Set the value of fSampling used to calibrate the MC hits energy (check)
+  /// Called in AliEMCALv0 and not anymore here in Init() in order to be able to work with Geant4
+  ///
+  /// \param mcname: Geant3/4, Flukla, ...
+  /// \param mctitle: Geant4 physics list tag name
+  ///
+  void DefineSamplingFraction(const std::string_view mcname = "", const std::string_view mctitle = "");
 
   //////////
   // General
   //
+
+  const std::string& GetName() const { return mGeoName; }
+
+  static const std::string& GetDefaultGeometryName() { return DEFAULT_GEOMETRY; }
+
   static Bool_t IsInitialized() { return Geometry::sGeom != nullptr; }
   // static const Char_t* GetDefaultGeometryName() {return EMCGeometry::fgkDefaultGeometryName;}
 
@@ -113,44 +125,44 @@ class Geometry : public TNamed
   ///
   void CreateListOfTrd1Modules();
 
-  TList* GetShishKebabTrd1Modules() const { return mShishKebabTrd1Modules; }
+  const std::vector<ShishKebabTrd1Module>& GetShishKebabTrd1Modules() const { return mShishKebabTrd1Modules; }
 
   ///
   /// \return  the shishkebabmodule at a given eta index point.
   ///
-  ShishKebabTrd1Module* GetShishKebabModule(Int_t neta) const;
+  const ShishKebabTrd1Module& GetShishKebabModule(Int_t neta) const;
 
   ///
   /// Given a TParticle, check if it falls in the EMCal/DCal geometry
   /// Call ImpactOnEmcal.
   ///
-  /// \param particle: TParticle
+  /// \param particle TParticle
   /// \return true in EMCal/DCa;
   ///
-  virtual Bool_t Impact(const TParticle* particle) const;
+  Bool_t Impact(const TParticle* particle) const;
 
   ///
   /// Calculates the impact coordinates on EMCAL (centre of a tower/not on EMCAL surface)
-  /// of a neutral particle
-  /// emitted in the vertex vtx[3] with direction theta and phi in the ALICE global coordinate system
+  /// of a neutral particle emitted in the vertex vtx[3] with direction theta and phi in
+  /// the global coordinate system
   ///
-  /// \param vtx: TVector3 with vertex?, input
-  /// \param theta: theta location, input
-  /// \param phi: azimuthal angle, input
-  /// \param absId: absolute ID number
-  /// \param vimpact: TVector3 of impact coordinates?
+  /// \param[in] vtx TVector3 with vertex
+  /// \param[in] theta theta location
+  /// \param[in] phi azimuthal angle
+  /// \param[out] absId absolute ID number
+  /// \param[out] vimpact TVector3 of impact coordinates?
   ///
-  void ImpactOnEmcal(TVector3 vtx, Double_t theta, Double_t phi, Int_t& absId, TVector3& vimpact) const;
+  void ImpactOnEmcal(const Point3D<double> &vtx, Double_t theta, Double_t phi, Int_t& absId, Point3D<double>& vimpact) const;
 
   ///
   /// Checks whether point is inside the EMCal volume
   ///
-  Bool_t IsInEMCAL(Double_t x, Double_t y, Double_t z) const;
+  Bool_t IsInEMCAL(const Point3D<double>& pnt) const;
 
   ///
   /// Checks whether point is inside the DCal volume
   ///
-  Bool_t IsInDCAL(Double_t x, Double_t y, Double_t z) const;
+  Bool_t IsInDCAL(const Point3D<double>& pnt) const;
 
   ///
   /// Checks whether point is inside the EMCal volume (included DCal), used in AliEMCALv*.cxx
@@ -159,77 +171,76 @@ class Geometry : public TNamed
   /// Points behind EMCAl/DCal, i.e. R > outer radius, but eta, phi in acceptance
   /// are considered to inside
   ///
-  /// \return calo type, 1 EMCal, 2 DCal
+  /// \return calo acceptance type
   ///
-  Int_t IsInEMCALOrDCAL(Double_t x, Double_t y, Double_t z) const;
+  AcceptanceType_t IsInEMCALOrDCAL(const Point3D<double>& pnt) const;
 
   //////////////////////////////////////
   // Return EMCAL geometrical parameters
   //
 
-  EMCGeometry* GetEMCGeometry() const { return mEMCGeometry; }
-
-  const Char_t* GetNameOfEMCALEnvelope() const { return mEMCGeometry->GetNameOfEMCALEnvelope(); }
-  Float_t GetArm1PhiMin() const { return mEMCGeometry->GetArm1PhiMin(); }
-  Float_t GetArm1PhiMax() const { return mEMCGeometry->GetArm1PhiMax(); }
-  Float_t GetArm1EtaMin() const { return mEMCGeometry->GetArm1EtaMin(); }
-  Float_t GetArm1EtaMax() const { return mEMCGeometry->GetArm1EtaMax(); }
-  Float_t GetIPDistance() const { return mEMCGeometry->GetIPDistance(); }
-  Float_t GetEnvelop(Int_t index) const { return mEMCGeometry->GetEnvelop(index); }
-  Float_t GetShellThickness() const { return mEMCGeometry->GetShellThickness(); }
-  Float_t GetZLength() const { return mEMCGeometry->GetZLength(); }
-  Float_t GetDCALInnerEdge() const { return mEMCGeometry->GetDCALInnerEdge(); }
-  Float_t GetDCALPhiMin() const { return mEMCGeometry->GetDCALPhiMin(); }
-  Float_t GetDCALPhiMax() const { return mEMCGeometry->GetDCALPhiMax(); }
-  Float_t GetEMCALPhiMax() const { return mEMCGeometry->GetEMCALPhiMax(); }
-  Int_t GetNECLayers() const { return mEMCGeometry->GetNECLayers(); }
-  Float_t GetDCALInnerExtandedEta() const { return mEMCGeometry->GetDCALInnerExtandedEta(); }
-  Int_t GetNZ() const { return mEMCGeometry->GetNZ(); }
-  Int_t GetNEta() const { return mEMCGeometry->GetNEta(); }
-  Int_t GetNPhi() const { return mEMCGeometry->GetNPhi(); }
-  Float_t GetECPbRadThick() const { return mEMCGeometry->GetECPbRadThick(); }
-  Float_t GetECScintThick() const { return mEMCGeometry->GetECScintThick(); }
-  Float_t GetSampling() const { return mEMCGeometry->GetSampling(); }
-  Int_t GetNumberOfSuperModules() const { return mEMCGeometry->GetNumberOfSuperModules(); }
-  Float_t GetPhiGapForSuperModules() const { return mEMCGeometry->GetPhiGapForSuperModules(); }
-  Float_t GetPhiModuleSize() const { return mEMCGeometry->GetPhiModuleSize(); }
-  Float_t GetEtaModuleSize() const { return mEMCGeometry->GetEtaModuleSize(); }
-  Float_t GetFrontSteelStrip() const { return mEMCGeometry->GetFrontSteelStrip(); }
-  Float_t GetLateralSteelStrip() const { return mEMCGeometry->GetLateralSteelStrip(); }
-  Float_t GetPassiveScintThick() const { return mEMCGeometry->GetPassiveScintThick(); }
-  Float_t GetPhiTileSize() const { return mEMCGeometry->GetPhiTileSize(); }
-  Float_t GetEtaTileSize() const { return mEMCGeometry->GetEtaTileSize(); }
-  Float_t GetPhiSuperModule() const { return mEMCGeometry->GetPhiSuperModule(); }
-  Int_t GetNPhiSuperModule() const { return mEMCGeometry->GetNPhiSuperModule(); }
-  Int_t GetNPHIdiv() const { return mEMCGeometry->GetNPHIdiv(); }
-  Int_t GetNETAdiv() const { return mEMCGeometry->GetNETAdiv(); }
-  Int_t GetNCells() const { return mEMCGeometry->GetNCells(); }
-  Float_t GetLongModuleSize() const { return mEMCGeometry->GetLongModuleSize(); }
-  Float_t GetTrd1Angle() const { return mEMCGeometry->GetTrd1Angle(); }
-  Float_t Get2Trd1Dx2() const { return mEMCGeometry->Get2Trd1Dx2(); }
-  Float_t GetTrd1AlFrontThick() const { return mEMCGeometry->GetTrd1AlFrontThick(); }
-  Float_t GetTrd1BondPaperThick() const { return mEMCGeometry->GetTrd1BondPaperThick(); }
+  const Char_t* GetNameOfEMCALEnvelope() const { return "XEN1"; }
+  Float_t GetArm1PhiMin() const { return mArm1PhiMin; }
+  Float_t GetArm1PhiMax() const { return mArm1PhiMax; }
+  Float_t GetArm1EtaMin() const { return mArm1EtaMin; }
+  Float_t GetArm1EtaMax() const { return mArm1EtaMax; }
+  Float_t GetIPDistance() const { return mIPDistance; }
+  Float_t GetEnvelop(Int_t index) const { return mEnvelop[index]; }
+  Float_t GetShellThickness() const { return mShellThickness; }
+  Float_t GetZLength() const { return mZLength; }
+  Float_t GetDCALInnerEdge() const { return mDCALInnerEdge; }
+  Float_t GetDCALPhiMin() const { return mDCALPhiMin; }
+  Float_t GetDCALPhiMax() const { return mDCALPhiMax; }
+  Float_t GetEMCALPhiMax() const { return mEMCALPhiMax; }
+  Float_t GetDCALStandardPhiMax() const { return mDCALStandardPhiMax; }
+  Int_t GetNECLayers() const { return mNECLayers; }
+  Float_t GetDCALInnerExtandedEta() const { return mDCALInnerExtandedEta; }
+  Int_t GetNZ() const { return mNZ; }
+  Int_t GetNEta() const { return mNZ; }
+  Int_t GetNPhi() const { return mNPhi; }
+  Float_t GetECPbRadThick() const { return mECPbRadThickness; }
+  Float_t GetECScintThick() const { return mECScintThick; }
+  Float_t GetSampling() const { return mSampling; }
+  Int_t GetNumberOfSuperModules() const { return mNumberOfSuperModules; }
+  Float_t GetPhiGapForSuperModules() const { return mPhiGapForSM; }
+  Float_t GetPhiModuleSize() const { return mPhiModuleSize; }
+  Float_t GetEtaModuleSize() const { return mEtaModuleSize; }
+  Float_t GetFrontSteelStrip() const { return mFrontSteelStrip; }
+  Float_t GetLateralSteelStrip() const { return mLateralSteelStrip; }
+  Float_t GetPassiveScintThick() const { return mPassiveScintThick; }
+  Float_t GetPhiTileSize() const { return mPhiTileSize; }
+  Float_t GetEtaTileSize() const { return mEtaTileSize; }
+  Float_t GetPhiSuperModule() const { return mPhiSuperModule; }
+  Int_t GetNPhiSuperModule() const { return mNPhiSuperModule; }
+  Int_t GetNPHIdiv() const { return mNPHIdiv; }
+  Int_t GetNETAdiv() const { return mNETAdiv; }
+  Int_t GetNCells() const { return mNCells; }
+  Float_t GetLongModuleSize() const { return mLongModuleSize; }
+  Float_t GetTrd1Angle() const { return mTrd1Angle; }
+  Float_t Get2Trd1Dx2() const { return m2Trd1Dx2; }
+  Float_t GetTrd1AlFrontThick() const { return mTrd1AlFrontThick; }
+  Float_t GetTrd1BondPaperThick() const { return mTrd1BondPaperThick; }
   // --
-  Int_t GetNCellsInSupMod() const { return mEMCGeometry->GetNCellsInSupMod(); }
-  Int_t GetNCellsInModule() const { return mEMCGeometry->GetNCellsInModule(); }
-  Int_t GetKey110DEG() const { return mEMCGeometry->GetKey110DEG(); }
-  Int_t GetnSupModInDCAL() const { return mEMCGeometry->GetnSupModInDCAL(); }
-  Int_t GetILOSS() const { return mEMCGeometry->GetILOSS(); }
-  Int_t GetIHADR() const { return mEMCGeometry->GetIHADR(); }
+  Int_t GetNCellsInSupMod() const { return mNCellsInSupMod; }
+  Int_t GetNCellsInModule() const { return mNCellsInModule; }
+  Int_t GetKey110DEG() const { return mKey110DEG; }
+  Int_t GetnSupModInDCAL() const { return mnSupModInDCAL; }
+  Int_t GetILOSS() const { return mILOSS; }
+  Int_t GetIHADR() const { return mIHADR; }
   // --
-  Float_t GetDeltaEta() const { return mEMCGeometry->GetDeltaEta(); }
-  Float_t GetDeltaPhi() const { return mEMCGeometry->GetDeltaPhi(); }
-  Int_t GetNTowers() const { return mEMCGeometry->GetNTowers(); }
+  Float_t GetDeltaEta() const { return (mArm1EtaMax - mArm1EtaMin) / ((Float_t)mNZ); }
+  Float_t GetDeltaPhi() const { return (mArm1PhiMax - mArm1PhiMin) / ((Float_t)mNPhi); }
+  Int_t GetNTowers() const { return mNPhi * mNZ; }
   //
-  Double_t GetPhiCenterOfSM(Int_t nsupmod) const { return mEMCGeometry->GetPhiCenterOfSM(nsupmod); }
-  Double_t GetPhiCenterOfSMSec(Int_t nsupmod) const { return mEMCGeometry->GetPhiCenterOfSMSec(nsupmod); }
-  Float_t GetSuperModulesPar(Int_t ipar) const { return mEMCGeometry->GetSuperModulesPar(ipar); }
+  Double_t GetPhiCenterOfSM(Int_t nsupmod) const;
+  Double_t GetPhiCenterOfSMSec(Int_t nsupmod) const;
+  Float_t GetSuperModulesPar(Int_t ipar) const { return mParSM[ipar]; }
   //
-  Int_t GetSMType(Int_t nSupMod) const
+  EMCALSMType GetSMType(Int_t nSupMod) const
   {
-    if (nSupMod > mEMCGeometry->GetNumberOfSuperModules())
-      return -1;
-    return mEMCGeometry->GetEMCSystem()[nSupMod];
+    if (nSupMod > mNumberOfSuperModules)
+      return NOT_EXISTENT;
+    return mEMCSMSystem[nSupMod];
   }
 
   ///
@@ -244,25 +255,19 @@ class Geometry : public TNamed
 
   // Methods needed for SM in extension, where center of SM != center of the SM-section.
   // Used in AliEMCALv0 to calculate position.
-  Bool_t GetPhiBoundariesOfSM(Int_t nSupMod, Double_t& phiMin, Double_t& phiMax) const
-  {
-    return mEMCGeometry->GetPhiBoundariesOfSM(nSupMod, phiMin, phiMax);
-  }
-  Bool_t GetPhiBoundariesOfSMGap(Int_t nPhiSec, Double_t& phiMin, Double_t& phiMax) const
-  {
-    return mEMCGeometry->GetPhiBoundariesOfSMGap(nPhiSec, phiMin, phiMax);
-  }
+  std::tuple<double, double> GetPhiBoundariesOfSM(Int_t nSupMod) const;
+  std::tuple<double, double> GetPhiBoundariesOfSMGap(Int_t nPhiSec) const;
 
   // Obsolete?
-  Float_t GetSteelFrontThickness() const { return mEMCGeometry->GetSteelFrontThickness(); }
+  Float_t GetSteelFrontThickness() const { return mSteelFrontThick; }
 
   ///////////////////////////////
   // Geometry data member setters
   //
-  void SetNZ(Int_t nz) { mEMCGeometry->SetNZ(nz); }
-  void SetNPhi(Int_t nphi) { mEMCGeometry->SetNPhi(nphi); }
+  void SetNZ(Int_t nz) { mNZ = nz; }
+  void SetNPhi(Int_t nphi) { mNPhi = nphi; }
   //
-  void SetSampling(Float_t samp) { mEMCGeometry->SetSampling(samp); }
+  void SetSampling(Float_t samp) { mSampling = samp; }
 
   //////////////////////////
   // Global geometry methods
@@ -334,51 +339,38 @@ class Geometry : public TNamed
   /// Figure out the eta/phi coordinates of a cell.
   /// Call to GetGlobal().
   ///
-  /// \param absId: cell absolute id. number.
-  /// \param eta: pseudo-rapidity, double
-  /// \param phi: azimuthal angle, double
+  /// \param absId cell absolute id. number.
+  /// \return tuple with (pseudorapidity, polar angle)
   ///
-  void EtaPhiFromIndex(Int_t absId, Double_t& eta, Double_t& phi) const;
-
-  ///
-  /// Figure out the eta/phi coordinates of a cell.
-  /// Call to GetGlobal(). Discard? Keep upper one?
-  ///
-  /// \param absId: cell absolute id. number.
-  /// \param eta: pseudo-rapidity, float
-  /// \param phi: azimuthal angle, float
-  ///
-  void EtaPhiFromIndex(Int_t absId, Float_t& eta, Float_t& phi) const;
+  std::tuple<double, double> EtaPhiFromIndex(Int_t absId) const;
 
   ///
   /// Get cell absolute ID number from eta and phi location.
   ///
-  /// \param eta: pseudorapidity location
-  /// \param phi: azimutal location
-  /// \param absId: cell absolute ID number
+  /// \param eta pseudorapidity location
+  /// \param phi azimutal location
+  /// \return cell absolute ID number
+  /// \thow InvalidPositionException
   ///
-  /// \return true if cell connexion found
-  ///
-  Bool_t GetAbsCellIdFromEtaPhi(Double_t eta, Double_t phi, Int_t& absId) const;
+  int GetAbsCellIdFromEtaPhi(Double_t eta, Double_t phi) const;
 
   ///
   /// Given a global eta/phi point check if it belongs to a supermodule covered region.
-  /// \return false if phi belongs a phi cracks between SM or far from SM
   ///
-  /// \param eta: pseudorapidity location
-  /// \param phi: azimutal location
-  /// \param nSupMod: super module number, output
+  /// \param eta pseudorapidity location
+  /// \param phi azimutal location
+  /// \return super module number
+  /// \throw InvalidPositionException
   ///
-  Bool_t SuperModuleNumberFromEtaPhi(Double_t eta, Double_t phi, Int_t& nSupMod) const;
+  int SuperModuleNumberFromEtaPhi(Double_t eta, Double_t phi) const;
 
   ///
   /// Get cell absolute ID number from location module (2 times 2 cells) of a super module
   ///
-  /// \param nSupMod: super module number
-  /// \param nModule: module number
-  /// \param nIphi: index of cell in module in phi direction 0 or 1
-  /// \param nIeta: index of cell in module in eta direction 0 or 1
-  ///
+  /// \param nSupMod super module number
+  /// \param nModule module number
+  /// \param nIphi index of cell in module in phi direction 0 or 1
+  /// \param nIeta index of cell in module in eta direction 0 or 1
   /// \return cell absolute ID number
   ///
   Int_t GetAbsCellId(Int_t nSupMod, Int_t nModule, Int_t nIphi, Int_t nIeta) const;
@@ -393,41 +385,37 @@ class Geometry : public TNamed
   ///
   /// Get cell SM, module numbers from absolute ID number
   ///
-  /// \param absId: cell absolute id. number
-  /// \param nSupMod: super module number
-  /// \param nModule: module number
-  /// \param nIphi: index of cell in module in phi direction 0 or 1
-  /// \param nIeta: index of cell in module in eta direction 0 or 1
+  /// \param absId cell absolute id. number
+  /// \param nSupMod super module number
+  /// \param nModule module number
   ///
-  /// \return true if absolute ID number exists
+  /// \return tuple(supermodule ID, module number, index of cell in module in phi, index of cell in module in eta)
+  /// \throw InvalidCellIDException
   ///
-  Bool_t GetCellIndex(Int_t absId, Int_t& nSupMod, Int_t& nModule, Int_t& nIphi, Int_t& nIeta) const;
+  std::tuple<int, int, int, int> GetCellIndex(Int_t absId) const;
 
   ///
-  /// Get eta-phi indexes of module in SM
+  /// \brief Get eta-phi indexes of module in SM
   ///
-  /// \param nSupMod: super module number, input
-  /// \param nModule: module number, input
-  /// \param iphim: index in phi direction of module, output
-  /// \param ietam: index in eta direction of module, output
+  /// \param[in] nSupMod: super module number, input
+  /// \param[in] nModule: module number, input
+  /// \return tuple (index in phi direction of module, index in eta direction of module)
   ///
-  void GetModulePhiEtaIndexInSModule(Int_t nSupMod, Int_t nModule, Int_t& iphim, Int_t& ietam) const;
+  std::tuple<int, int> GetModulePhiEtaIndexInSModule(Int_t nSupMod, Int_t nModule) const;
 
   ///
-  /// Get eta-phi indexes of cell in SM
+  /// \brief Get eta-phi indexes of cell in SM
   ///
-  /// \param nSupMod: super module number, input
-  /// \param nModule: module number, input
-  /// \param nIphi: index in phi direction in module, input
-  /// \param nIeta: index in phi direction in module, input
-  /// \param iphi: index in phi direction in super module, output
-  /// \param ieta: index in eta direction in super module, output
+  /// \param nSupMod[in] super module number
+  /// \param nModule[in] module number
+  /// \param nIphi[in] index in phi direction in module
+  /// \param nIeta[in] index in phi direction in module
+  /// \return tuple (index in phi direction in super module, index in eta direction in super module)
   ///
-  void GetCellPhiEtaIndexInSModule(Int_t nSupMod, Int_t nModule, Int_t nIphi, Int_t nIeta, Int_t& iphi,
-                                   Int_t& ieta) const;
+  std::tuple<double, double> GetCellPhiEtaIndexInSModule(Int_t nSupMod, Int_t nModule, Int_t nIphi, Int_t nIeta) const;
 
   ///
-  /// Get cell SM,  from absolute ID number
+  /// \brief Get cell SM,  from absolute ID number
   ///
   /// \param absId: cell absolute id. number
   /// \return super module number
@@ -469,92 +457,47 @@ class Geometry : public TNamed
   Int_t GetAbsCellIdFromCellIndexes(Int_t nSupMod, Int_t iphi, Int_t ieta) const;
 
   ///
-  /// Online mapping and numbering is the same for EMCal and DCal SMs but:
-  ///  - DCal odd SM (13,15,17) has online cols: 16-47; offline cols 0-31.
-  ///  - Even DCal SMs have the same numbering online and offline 0-31.
-  ///  - DCal 1/3 SM (18,19), online rows 16-23; offline rows 0-7
+  /// \brief Look to see what the relative position inside a given cell is for a recpoint.
   ///
-  /// Here shift the online cols or rows depending on the
-  /// super-module number to match the offline mapping.
-  ///
-  /// \param sm: super module number of the channel/cell
-  /// \param iphi: row/phi cell index, modified for DCal
-  /// \param ieta: column/eta index, modified for DCal
-  ///
-  void ShiftOnlineToOfflineCellIndexes(Int_t sm, Int_t& iphi, Int_t& ieta) const;
-
-  ///
-  /// Here shift the DCal online cols or rows depending on the
-  /// super-module number to match the online mapping.
-  ///
-  /// Reverse procedure to the one in the method above
-  /// ShiftOnlineToOfflineCellIndexes().
-  ///
-  /// \param sm: super module number of the channel/cell
-  /// \param iphi: row/phi cell index, modified for DCal
-  /// \param ieta: column/eta index, modified for DCal
-  ///
-  void ShiftOfflineToOnlineCellIndexes(Int_t sm, Int_t& iphi, Int_t& ieta) const;
-
-  ///
-  /// Methods for AliEMCALRecPoint: Look to see what the relative position inside a given cell is for a recpoint.
-  ///
-  /// \param absId: cell absolute id. number, input
-  /// \param xr,yr,zr - x,y,z coordinates of cell with absId inside SM, output
-  ///
-  /// \return false if cell absId does not exist
-  Bool_t RelPosCellInSModule(Int_t absId, Double_t& xr, Double_t& yr, Double_t& zr) const;
-
-  ///
-  /// Methods for AliEMCALRecPoint: Look to see what the relative position inside a given cell is for a recpoint.
   /// Same as RelPosCellInSModule(Int_t absId, Double_t &xr, Double_t &yr, Double_t &zr)
   /// but taking into account position of shower max.
   ///
-  /// \param absId: cell absolute id. number, input
-  /// \param distEff: shower max position? check call in AliEMCALRecPoint!, input
-  /// \param xr,yr,zr - x,y,z coordinates of cell with absId inside SM, output
+  /// \param[in] absId cell absolute id. number, input
+  /// \param[in] distEff shower max position? check call in RecPoint!
+  /// \return Point3D with x,y,z coordinates of cell with absId inside SM
+  /// \throw InvalidCellIDException if cell ID does not exist
   ///
-  /// \return false if cell absId does not exist=
-  Bool_t RelPosCellInSModule(Int_t absId, Double_t distEff, Double_t& xr, Double_t& yr, Double_t& zr) const;
+  Point3D<double> RelPosCellInSModule(Int_t absId, Double_t distEf) const;
 
   ///
-  /// Methods for AliEMCALRecPoint: Look to see what the relative position inside a given cell is for a recpoint.
+  /// \brief Look to see what the relative position inside a given cell is for a recpoint.
   ///
-  /// \param absId: cell absolute id. number, input
-  /// \param loc: Double[3] with x,y,z coordinates of cell with absId inside SM, output
+  /// \param absId cell absolute id. number, input
+  /// \return Point3D with x,y,z coordinates of cell with absId inside SM
+  /// \throw InvalidCellIDException if cell ID does not exist
   ///
-  /// \return false if cell absId does not exist
-  Bool_t RelPosCellInSModule(Int_t absId, Double_t loc[3]) const;
+  Point3D<double> RelPosCellInSModule(Int_t absId) const;
 
-  ///
-  /// Methods for AliEMCALRecPoint: Look to see what the relative position inside a given cell is for a recpoint.
-  ///
-  /// \param absId: cell absolute id. number, input
-  /// \param vloc: TVector3 with x,y,z coordinates of cell with absId inside SM, output
-  ///
-  /// \return false if cell absId does not exist
-  Bool_t RelPosCellInSModule(Int_t absId, TVector3& vloc) const;
-
-  Int_t* GetEMCSystem() const { return mEMCGeometry->GetEMCSystem(); } // EMC System, SM type list
+  std::vector<EMCALSMType> GetEMCSystem() const { return mEMCSMSystem; } // EMC System, SM type list
   // Local Coordinates of SM
-  TArrayD GetCentersOfCellsEtaDir() const
+  std::vector<Double_t> GetCentersOfCellsEtaDir() const
   {
     return mCentersOfCellsEtaDir;
   } // size fNEta*fNETAdiv (for TRD1 only) (eta or z in SM, in cm)
-  TArrayD GetCentersOfCellsXDir() const
+  std::vector<Double_t> GetCentersOfCellsXDir() const
   {
     return mCentersOfCellsXDir;
   } // size fNEta*fNETAdiv (for TRD1 only) (       x in SM, in cm)
-  TArrayD GetCentersOfCellsPhiDir() const
+  std::vector<Double_t> GetCentersOfCellsPhiDir() const
   {
     return mCentersOfCellsPhiDir;
   } // size fNPhi*fNPHIdiv (for TRD1 only) (phi or y in SM, in cm)
   //
-  TArrayD GetEtaCentersOfCells() const
+  std::vector<Double_t> GetEtaCentersOfCells() const
   {
     return mEtaCentersOfCells;
   } // [fNEta*fNETAdiv*fNPhi*fNPHIdiv], positive direction (eta>0); eta depend from phi position;
-  TArrayD GetPhiCentersOfCells() const
+  std::vector<Double_t> GetPhiCentersOfCells() const
   {
     return mPhiCentersOfCells;
   } // [fNPhi*fNPHIdiv] from center of SM (-10. < phi < +10.)
@@ -592,7 +535,7 @@ class Geometry : public TNamed
                                 Float_t global[3]) const;
 
   ///
-  /// Provides shift-rotation matrix for EMCAL from externally set matrix or
+  /// \brief Provides shift-rotation matrix for EMCAL from externally set matrix or
   /// from TGeoManager
   /// \return alignment matrix for a super module number
   /// \param smod: super module number
@@ -600,7 +543,7 @@ class Geometry : public TNamed
   const TGeoHMatrix* GetMatrixForSuperModule(Int_t smod) const;
 
   ///
-  /// Provides shift-rotation matrix for EMCAL from the TGeoManager.
+  /// \brief Provides shift-rotation matrix for EMCAL from the TGeoManager.
   /// \return alignment matrix for a super module number
   /// \param smod: super module number
   ///
@@ -617,32 +560,32 @@ class Geometry : public TNamed
   const TGeoHMatrix* GetMatrixForSuperModuleFromArray(Int_t smod) const;
 
  protected:
-  /// initializes the parameters of EMCAL
+  /// \brief initializes the parameters of EMCAL
   void Init();
 
-  EMCGeometry* mEMCGeometry; ///< Geometry object for Electromagnetic calorimeter
+  /// Init function of previous class EMCGeometry
+  void DefineEMC(std::string_view mcname, std::string_view mctitle);
 
-  TString mGeoName; ///< Geometry name string
-  // Int_t    *fEMCSMSystem;	         ///< [fEMCGeometry.fNumberOfSuperModules] geometry structure
+  std::string mGeoName;       ///< Geometry name string
   Int_t mKey110DEG;           ///< For calculation abs cell id; 19-oct-05
   Int_t mnSupModInDCAL;       ///< For calculation abs cell id; 06-nov-12
   Int_t mNCellsInSupMod;      ///< Number cell in super module
   Int_t mNETAdiv;             ///< Number eta division of module
   Int_t mNPHIdiv;             ///< Number phi division of module
   Int_t mNCellsInModule;      ///< Number cell in module
-  TArrayD mPhiBoundariesOfSM; ///< Phi boundaries of SM in rad; size is fNumberOfSuperModules;
-  TArrayD mPhiCentersOfSM;    ///< Phi of centers of SM; size is fNumberOfSuperModules/2
-  TArrayD mPhiCentersOfSMSec; ///< Phi of centers of section where SM lies; size is fNumberOfSuperModules/2
+  std::vector<Double_t> mPhiBoundariesOfSM; ///< Phi boundaries of SM in rad; size is fNumberOfSuperModules;
+  std::vector<Double_t> mPhiCentersOfSM;    ///< Phi of centers of SM; size is fNumberOfSuperModules/2
+  std::vector<Double_t> mPhiCentersOfSMSec; ///< Phi of centers of section where SM lies; size is fNumberOfSuperModules/2
 
   // Local Coordinates of SM
-  TArrayD mPhiCentersOfCells;    ///< [fNPhi*fNPHIdiv] from center of SM (-10. < phi < +10.)
-  TArrayD mCentersOfCellsEtaDir; ///< Size fNEta*fNETAdiv (for TRD1 only) (eta or z in SM, in cm)
-  TArrayD mCentersOfCellsPhiDir; ///< Size fNPhi*fNPHIdiv (for TRD1 only) (phi or y in SM, in cm)
-  TArrayD
+  std::vector<Double_t> mPhiCentersOfCells;    ///< [fNPhi*fNPHIdiv] from center of SM (-10. < phi < +10.)
+  std::vector<Double_t> mCentersOfCellsEtaDir; ///< Size fNEta*fNETAdiv (for TRD1 only) (eta or z in SM, in cm)
+  std::vector<Double_t> mCentersOfCellsPhiDir; ///< Size fNPhi*fNPHIdiv (for TRD1 only) (phi or y in SM, in cm)
+  std::vector<Double_t>
     mEtaCentersOfCells; ///< [fNEta*fNETAdiv*fNPhi*fNPHIdiv], positive direction (eta>0); eta depend from phi position;
   Int_t mNCells;        ///< Number of cells in calo
   Int_t mNPhi;          ///< Number of Towers in the PHI direction
-  TArrayD mCentersOfCellsXDir;   ///< Size fNEta*fNETAdiv (for TRD1 only) (       x in SM, in cm)
+  std::vector<Double_t> mCentersOfCellsXDir;   ///< Size fNEta*fNETAdiv (for TRD1 only) (       x in SM, in cm)
   Float_t mEnvelop[3];           ///< The GEANT TUB for the detector
   Float_t mArm1EtaMin;           ///< Minimum pseudorapidity position of EMCAL in Eta
   Float_t mArm1EtaMax;           ///< Maximum pseudorapidity position of EMCAL in Eta
@@ -654,29 +597,67 @@ class Geometry : public TNamed
   Float_t mEMCALPhiMax;          ///< Maximum angular position of EMCAL in Phi (degrees)
   Float_t mDCALStandardPhiMax;   ///< Special edge for the case that DCAL contian extension
   Float_t mDCALInnerExtandedEta; ///< DCAL inner edge in Eta (with some extension)
-  TList* mShishKebabTrd1Modules; ///< List of modules
-  Float_t mParSM[3];             ///< SM sizes as in GEANT (TRD1)
-  Float_t mPhiModuleSize;        ///< Phi -> X
-  Float_t mEtaModuleSize;        ///< Eta -> Y
-  Float_t mPhiTileSize;          ///< Size of phi tile
-  Float_t mEtaTileSize;          ///< Size of eta tile
-  Int_t mNZ;                     ///< Number of Towers in the Z direction
-  Float_t mIPDistance;           ///< Radial Distance of the inner surface of the EMCAL
-  Float_t mLongModuleSize;       ///< Size of long module
+  Float_t mDCALInnerEdge;        ///< Inner edge for DCAL
+  std::vector<ShishKebabTrd1Module> mShishKebabTrd1Modules; ///< List of modules
+  Float_t mParSM[3];                                        ///< SM sizes as in GEANT (TRD1)
+  Float_t mPhiModuleSize;                                   ///< Phi -> X
+  Float_t mEtaModuleSize;                                   ///< Eta -> Y
+  Float_t mPhiTileSize;                                     ///< Size of phi tile
+  Float_t mEtaTileSize;                                     ///< Size of eta tile
+  Int_t mNZ;                                                ///< Number of Towers in the Z direction
+  Float_t mIPDistance;                                      ///< Radial Distance of the inner surface of the EMCAL
+  Float_t mLongModuleSize;                                  ///< Size of long module
 
   // Geometry Parameters
   Float_t mShellThickness; ///< Total thickness in (x,y) direction
   Float_t mZLength;        ///< Total length in z direction
   Float_t mSampling;       ///< Sampling factor
 
+  // Members from the EMCGeometry class
+  Float_t mECPbRadThickness; ///< cm, Thickness of the Pb radiators
+  Float_t mECScintThick;     ///< cm, Thickness of the scintillators
+  Int_t mNECLayers;          ///< number of scintillator layers
+
+  // Shish-kebab option - 23-aug-04 by PAI; COMPACT, TWIST, TRD1 and TRD2
+  Int_t mNumberOfSuperModules; ///< default is 12 = 6 * 2
+
+  /// geometry structure
+  std::vector<EMCALSMType> mEMCSMSystem; ///< Type of the supermodule (size number of supermodules
+
+  Float_t mFrontSteelStrip;   ///< 13-may-05
+  Float_t mLateralSteelStrip; ///< 13-may-05
+  Float_t mPassiveScintThick; ///< 13-may-05
+
+  Float_t mPhiSuperModule; ///< Phi of normal supermodule (20, in degree)
+  Int_t mNPhiSuperModule;  ///< 9 - number supermodule in phi direction
+
+  // TRD1 options - 30-sep-04
+  Float_t mTrd1Angle;   ///< angle in x-z plane (in degree)
+  Float_t m2Trd1Dx2;    ///< 2*dx2 for TRD1
+  Float_t mPhiGapForSM; ///< Gap betweeen supermodules in phi direction
+
+  // Oct 26,2010
+  Float_t mTrd1AlFrontThick;   ///< Thickness of the Al front plate
+  Float_t mTrd1BondPaperThick; ///< Thickness of the Bond Paper sheet
+
+  Int_t mILOSS; ///< Options for Geant (MIP business) - will call in AliEMCAL
+  Int_t mIHADR; ///< Options for Geant (MIP business) - will call in AliEMCAL
+
+  Float_t mSteelFrontThick; ///< Thickness of the front stell face of the support box - 9-sep-04; obsolete?
+
   mutable const TGeoHMatrix* SMODULEMATRIX[EMCAL_MODULES]; ///< Orientations of EMCAL super modules
 
  private:
-  static Geometry* sGeom;                    ///< Pointer to the unique instance of the singleton
-  static const Char_t* sDefaultGeometryName; ///< Default name of geometry
-
-  ClassDef(Geometry, 1);
+  static Geometry* sGeom; ///< Pointer to the unique instance of the singleton
 };
+
+inline Bool_t Geometry::CheckAbsCellId(Int_t absId) const
+{
+  if (absId < 0 || absId >= mNCells)
+    return kFALSE;
+  else
+    return kTRUE;
+}
 }
 }
 #endif

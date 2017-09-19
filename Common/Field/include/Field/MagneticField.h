@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -18,6 +18,7 @@
 #include "FairField.h"         // for FairField
 #include "Field/MagFieldParam.h"
 #include "Field/MagneticWrapperChebyshev.h" // for MagneticWrapperChebyshev
+#include "Field/MagFieldFast.h"
 #include "TSystem.h"
 #include "Rtypes.h"            // for Double_t, Char_t, Int_t, Float_t, etc
 #include "TNamed.h"            // for TNamed
@@ -30,8 +31,6 @@ namespace o2 { namespace field { class MagneticWrapperChebyshev; }}  // lines 19
 namespace o2 {
 namespace field {
 
-class MagneticWrapperChebyshev;
-class MagFieldFast;
 
 /// Interface between the TVirtualMagField and MagneticWrapperChebyshev: wrapper to the set of magnetic field data +
 /// Tosca
@@ -82,14 +81,14 @@ class MagneticField : public FairField
     /// X component, avoid using since slow
     Double_t GetBx(Double_t x, Double_t y, Double_t z) override {
       double xyz[3]={x,y,z},b[3];
-      GetFieldValue(xyz,b);
+      MagneticField::Field(xyz,b);
       return b[0];
     } 
 
     /// Y component, avoid using since slow
     Double_t GetBy(Double_t x, Double_t y, Double_t z) override {
       double xyz[3]={x,y,z},b[3];
-      GetFieldValue(xyz,b);
+      MagneticField::Field(xyz,b);
       return b[1];
     }
 
@@ -100,10 +99,11 @@ class MagneticField : public FairField
     } 
 
     /// Method to calculate the field at point xyz
-    void GetFieldValue(const Double_t point[3], Double_t* bField) override;
+    /// Main interface from TVirtualMagField used in simulation
+    void Field(const Double_t* __restrict__ point, Double_t* __restrict__ bField) override;
 
     /// 3d field query alias for Alias Method to calculate the field at point xyz
-    void GetBxyz(const Double_t p[3], Double_t* b) override {Field(p,b);}
+    void GetBxyz(const Double_t p[3], Double_t* b) override { MagneticField::Field(p,b); }
 
     /// Fill Paramater
     void FillParContainer() override;
@@ -163,7 +163,7 @@ class MagneticField : public FairField
       return mMapType == MagFieldParam::k5kGUniform;
     }
 
-    void MachineField(const Double_t *x, Double_t *b) const;
+    void MachineField(const Double_t * __restrict__ x, Double_t * __restrict__ b) const;
 
     MagFieldParam::BMap_t getMapType() const
     {

@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -33,7 +33,7 @@ BOOST_AUTO_TEST_SUITE(ProducerTestSuite)
 BOOST_AUTO_TEST_CASE(establishChannelByProducerDevice)
 {
   shared_ptr<Producer> producer(new TH1Producer(NAME, TITLE, NUMBER_OF_BINS));
-  unique_ptr<ProducerDevice> producerDevice(new ProducerDevice("Producer", 1, producer));
+  unique_ptr<ProducerDevice> producerDevice(new ProducerDevice("Producer", producer));
 
   BOOST_TEST(producerDevice->fChannels.size() == 0, "Producer device has a channel connected at startup");
 

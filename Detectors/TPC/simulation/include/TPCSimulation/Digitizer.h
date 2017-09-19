@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -17,7 +17,9 @@
 
 #include "TPCSimulation/DigitContainer.h"
 #include "TPCSimulation/PadResponse.h"
-#include "TPCSimulation/Constants.h"
+#include "TPCBase/ParameterDetector.h"
+#include "TPCBase/ParameterElectronics.h"
+#include "TPCBase/ParameterGas.h"
 
 #include "TPCBase/Mapper.h"
 
@@ -132,7 +134,10 @@ class Digitizer {
 inline
 int Digitizer::getTimeBin(float zPos)
 {
-  float timeBin = (TPCLENGTH-std::fabs(zPos))/(DRIFTV*ZBINWIDTH);
+  const static ParameterGas &gasParam = ParameterGas::defaultInstance();
+  const static ParameterDetector &detParam = ParameterDetector::defaultInstance();
+  const static ParameterElectronics &eleParam = ParameterElectronics::defaultInstance();
+  float timeBin = (detParam.getTPClength()-std::fabs(zPos))/(gasParam.getVdrift()*eleParam.getZBinWidth());
   return static_cast<int>(timeBin);
 }
 
@@ -140,28 +145,35 @@ inline
 float Digitizer::getZfromTimeBin(float timeBin, Side s)
 {
   float zSign = (s==0) ? 1 : -1;
-  float zAbs =  zSign * (TPCLENGTH- (timeBin*DRIFTV*ZBINWIDTH));
+  const static ParameterGas &gasParam = ParameterGas::defaultInstance();
+  const static ParameterDetector &detParam = ParameterDetector::defaultInstance();
+  const static ParameterElectronics &eleParam = ParameterElectronics::defaultInstance();
+  float zAbs =  zSign * (detParam.getTPClength()- (timeBin*gasParam.getVdrift()*eleParam.getZBinWidth()));
   return zAbs;
 }
 
 inline
 int Digitizer::getTimeBinFromTime(float time)
 {
-  float timeBin = time / ZBINWIDTH;
+  const static ParameterElectronics &eleParam = ParameterElectronics::defaultInstance();
+  float timeBin = time / eleParam.getZBinWidth();
   return static_cast<int>(timeBin);
 }
 
 inline
 float Digitizer::getTimeFromBin(int timeBin)
 {
-  float time = static_cast<float>(timeBin)*ZBINWIDTH;
+  const static ParameterElectronics &eleParam = ParameterElectronics::defaultInstance();
+  float time = static_cast<float>(timeBin)*eleParam.getZBinWidth();
   return time;
 }
 
 inline
 float Digitizer::getTime(float zPos)
 {
-  float time = (TPCLENGTH-std::fabs(zPos))/DRIFTV;
+  const static ParameterGas &gasParam = ParameterGas::defaultInstance();
+  const static ParameterDetector &detParam = ParameterDetector::defaultInstance();
+  float time = (detParam.getTPClength()-std::fabs(zPos))/gasParam.getVdrift();
   return time;
 }
 

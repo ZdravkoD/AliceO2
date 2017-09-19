@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -22,67 +22,6 @@
 using namespace o2::ITSMFT;
 
 ClassImp(o2::ITSMFT::Cluster)
-
-//_____________________________________________________
-Cluster::Cluster()
-  : mTracks{ -1, -1, -1 },
-    mX(0),
-    mY(0),
-    mZ(0),
-    mSigmaY2(0),
-    mSigmaZ2(0),
-    mSigmaYZ(0),
-    mVolumeId(0),
-    mCharge(0),
-    mRecoInfo(0),
-    mNxNzN(0)
-#ifdef _ClusterTopology_
-    ,
-    mPatternNRows(0),
-    mPatternNCols(0),
-    mPatternMinRow(0),
-    mPatternMinCol(0)
-#endif
-{
-// default constructor
-#ifdef _ClusterTopology_
-  memset(mPattern, 0, kMaxPatternBytes * sizeof(UChar_t));
-#endif
-}
-
-//_____________________________________________________
-Cluster::~Cluster()
-{
-  // default destructor
-}
-
-//_____________________________________________________
-Cluster::Cluster(const Cluster& cluster)
-  : FairTimeStamp(cluster),
-    mTracks{ cluster.mTracks[0], cluster.mTracks[1], cluster.mTracks[2] },
-    mX(cluster.mX),
-    mY(cluster.mY),
-    mZ(cluster.mZ),
-    mSigmaY2(cluster.mSigmaY2),
-    mSigmaZ2(cluster.mSigmaZ2),
-    mSigmaYZ(cluster.mSigmaYZ),
-    mVolumeId(cluster.mVolumeId),
-    mCharge(cluster.mCharge),
-    mRecoInfo(cluster.mRecoInfo),
-    mNxNzN(cluster.mNxNzN)
-#ifdef _ClusterTopology_
-    ,
-    mPatternNRows(cluster.mPatternNRows),
-    mPatternNCols(cluster.mPatternNCols),
-    mPatternMinRow(cluster.mPatternMinRow),
-    mPatternMinCol(cluster.mPatternMinCol)
-#endif
-{
-// copy constructor
-#ifdef _ClusterTopology_
-  memcpy(mPattern, cluster.mPattern, kMaxPatternBytes * sizeof(UChar_t));
-#endif
-}
 
 #ifdef _ClusterTopology_
 //______________________________________________________________________________
@@ -147,15 +86,16 @@ void Cluster::setPatternColSpan(UShort_t nc, Bool_t truncated)
 Bool_t Cluster::hasCommonTrack(const Cluster* cl) const
 {
   // check if clusters have common tracks
-  int lbi, lbj;
-  for (int i = 0; i < 3; i++) {
-    if ((lbi = getLabel(i)) < 0)
-      break;
-    for (int j = 0; j < 3; j++) {
-      if ((lbj = cl->getLabel(j)) < 0)
-        break;
-      if (lbi == lbj)
-        return kTRUE;
+  for (int i = 0; i < maxLabels; i++) {
+    Label lbi = getLabel(i);
+    if ( lbi.isEmpty() ) break;
+    if ( !lbi.isPosTrackID() ) continue;
+
+    for (int j = 0; j < maxLabels; j++) {
+      Label lbj = cl->getLabel(j);
+      if ( lbj.isEmpty() ) break;
+      if ( !lbj.isPosTrackID() ) continue;
+      if (lbi == lbj) return kTRUE;
     }
   }
   return kFALSE;

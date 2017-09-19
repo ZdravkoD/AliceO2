@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -24,7 +24,7 @@ class TClonesArray;
 class TVector3;
 
 namespace o2 { namespace MFT { class GeometryTGeo; } }
-namespace o2 { namespace ITSMFT { class Point; } }
+namespace o2 { namespace ITSMFT { class Hit; } }
 
 namespace o2 {
 namespace MFT {
@@ -92,14 +92,14 @@ protected:
   Int_t mVersion;                  //
   GeometryTGeo *mGeometryTGeo;     //!
   Double_t mDensitySupportOverSi;  //
-  TClonesArray *mPoints;           //!
+  TClonesArray *mHits;             //!
  
 private:
 
   Detector(const Detector&);
   Detector& operator=(const Detector&);
 
-  o2::ITSMFT::Point* addHit(int trackID, int detID, TVector3 startPos, TVector3 endPos, TVector3 startMom, double startE, double endTime, double eLoss, unsigned char startStatus, unsigned char endStatus);
+  o2::ITSMFT::Hit* addHit(int trackID, int detID, TVector3 startPos, TVector3 endPos, TVector3 startMom, double startE, double endTime, double eLoss, unsigned char startStatus, unsigned char endStatus);
 
   /// this is transient data about track passing the sensor
   struct TrackData {                  // this is transient 

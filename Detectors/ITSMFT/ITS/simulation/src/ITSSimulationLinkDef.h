@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -18,9 +18,7 @@
 #pragma link C++ class o2::ITS::V1Layer+;
 #pragma link C++ class o2::ITS::V3Layer+;
 #pragma link C++ class o2::ITS::Detector+;
-#pragma link C++ class o2::ITS::GeometryHandler+;
 #pragma link C++ class o2::ITS::DigitWriteoutBuffer+;
-#pragma link C++ class o2::ITS::Digitizer+;
 #pragma link C++ class o2::ITS::DigitizerTask+;
 
 #endif

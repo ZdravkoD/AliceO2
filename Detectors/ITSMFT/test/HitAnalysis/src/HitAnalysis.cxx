@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -25,14 +25,19 @@
 #include "TMath.h"
 
 #include "ITSMFTSimulation/Chip.h"
-#include "ITSMFTSimulation/Point.h"
+#include "ITSMFTSimulation/Hit.h"
 #include "ITSMFTBase/Segmentation.h"
 #include "ITSBase/GeometryTGeo.h"
+#include "MathUtils/Cartesian3D.h"
+#include "DetectorsBase/Utils.h"
 
 using o2::ITSMFT::Segmentation;
 using o2::ITSMFT::Chip;
-using o2::ITSMFT::Point;
+using o2::ITSMFT::Hit;
+
 using namespace o2::ITS;
+using namespace o2::Base;
+using namespace o2::Base::Utils;
 
 HitAnalysis::HitAnalysis() :
   FairTask(),
@@ -75,18 +80,22 @@ InitStatus HitAnalysis::Init()
     return kERROR;
   }
 
-  mPointsArray = dynamic_cast<TClonesArray *>(mgr->GetObject("ITSPoint"));
-  if (!mPointsArray) {
+  mHitsArray = dynamic_cast<TClonesArray *>(mgr->GetObject("ITSHit"));
+  if (!mHitsArray) {
     LOG(ERROR) << "ITS points not registered in the FairRootManager. Exiting ..." << FairLogger::endl;
     return kERROR;
   }
 
   // Create geometry, initialize chip array
-  mGeometry = new GeometryTGeo(kTRUE, kTRUE);
+  GeometryTGeo* geom = GeometryTGeo::Instance();
+  if ( !geom->isBuilt() ) geom->Build(true);
+  geom->fillMatrixCache( bit2Mask(TransformType::L2G) ); // make sure T2L matrices are loaded
+
+  mGeometry = geom;
 
   if (mProcessChips) {
     for (int chipid = 0; chipid < mGeometry->getNumberOfChips(); chipid++) {
-      mChips[chipid] = new Chip(chipid, mGeometry->getMatrixSensor(chipid));
+      mChips[chipid] = new Chip(nullptr, chipid, &mGeometry->getMatrixSensor(chipid));
     }
     LOG(DEBUG) << "Created " << mChips.size() << " chips." << FairLogger::endl;
 
@@ -138,7 +147,7 @@ void HitAnalysis::Exec(Option_t *option)
   //}
 
   // Add test: Count number of hits in the points array (cannot be larger then the entries in the tree)
-  mHitCounter->Fill(1., mPointsArray->GetEntries());
+  mHitCounter->Fill(1., mHitsArray->GetEntries());
 
   if (mProcessChips) {
     ProcessChips();
@@ -153,7 +162,7 @@ void HitAnalysis::ProcessChips()
   Int_t nchipsNotEmpty(0);
   std::vector<int> nonEmptyChips;
   for (auto chipiter: mChips) {
-    if (chipiter.second->GetNumberOfPoints() > 0) {
+    if (chipiter.second->GetNumberOfHits() > 0) {
       nonEmptyChips.push_back(chipiter.second->GetChipIndex());
       nchipsNotEmpty++;
     }
@@ -166,10 +175,10 @@ void HitAnalysis::ProcessChips()
   }
 
   // Assign hits to chips
-  for (TIter pointIter = TIter(mPointsArray).Begin(); pointIter != TIter::End(); ++pointIter) {
-    Point *point = static_cast<Point *>(*pointIter);
+  for (TIter pointIter = TIter(mHitsArray).Begin(); pointIter != TIter::End(); ++pointIter) {
+    Hit *point = static_cast<Hit *>(*pointIter);
     try {
-      mChips[point->GetDetectorID()]->InsertPoint(point);
+      mChips[point->GetDetectorID()]->InsertHit(point);
     } catch (Chip::IndexException &e) {
       LOG(ERROR) << e.what() << FairLogger::endl;
     }
@@ -178,10 +187,10 @@ void HitAnalysis::ProcessChips()
   // Add test: Total number of hits assigned to chips must be the same as the size of the points array
   Int_t nHitsAssigned(0);
   for (auto chipiter : mChips) {
-    nHitsAssigned += chipiter.second->GetNumberOfPoints();
+    nHitsAssigned += chipiter.second->GetNumberOfHits();
   }
-  if (nHitsAssigned != mPointsArray->GetEntries()) {
-    LOG(ERROR) << "Number of points mismatch: Read(" << mPointsArray->GetEntries() << "), Assigned(" << nHitsAssigned <<
+  if (nHitsAssigned != mHitsArray->GetEntries()) {
+    LOG(ERROR) << "Number of points mismatch: Read(" << mHitsArray->GetEntries() << "), Assigned(" << nHitsAssigned <<
                ")" << FairLogger::endl;
   }
 
@@ -191,12 +200,12 @@ void HitAnalysis::ProcessChips()
   // loop over chips, get the line segment
   for (auto chipiter: mChips) {
     Chip &mychip = *(chipiter.second);
-    if (!mychip.GetNumberOfPoints()) {
+    if (!mychip.GetNumberOfHits()) {
       continue;
     }
     //LOG(DEBUG) << "Processing chip with index " << mychip.GetChipIndex() << FairLogger::endl;
-    for (int ihit = 0; ihit < mychip.GetNumberOfPoints(); ihit++) {
-      if (mychip.GetPointAt(ihit)->IsEntering()) { continue; }
+    for (int ihit = 0; ihit < mychip.GetNumberOfHits(); ihit++) {
+      if (mychip.GetHitAt(ihit)->IsEntering()) { continue; }
       mychip.LineSegmentLocal(ihit, x0, x1, y0, y1, z0, z1, tof, edep);
       steplength = TMath::Sqrt(x1 * x1 + y1 * y1 + z1 * z1);
       mLineSegment->Fill(steplength);
@@ -216,26 +225,19 @@ void HitAnalysis::ProcessChips()
 
 void HitAnalysis::ProcessHits()
 {
-  for (TIter pointiter = TIter(mPointsArray).Begin(); pointiter != TIter::End(); ++pointiter) {
-    Point *p = static_cast<Point *>(*pointiter);
-    Double_t phitloc[3], pstartloc[3],
-      phitglob[3] = {p->GetX(), p->GetY(), p->GetZ()},
-      pstartglob[3] = {p->GetStartX(), p->GetStartY(), p->GetStartZ()};
-
-    //fGeometry->getMatrix(p->GetDetectorID())->MasterToLocal(phitglob, phitloc);
-    //fGeometry->getMatrix(p->GetDetectorID())->MasterToLocal(pstartglob, pstartloc);
-    mGeometry->globalToLocal(p->GetDetectorID(), phitglob, phitloc);
-    mGeometry->globalToLocal(p->GetDetectorID(), pstartglob, pstartloc);
-
-    mLocalX0->Fill(pstartloc[0]);
-    mLocalY0->Fill(pstartloc[1]);
-    mLocalZ0->Fill(pstartloc[2]);
-    mLocalX1->Fill(phitloc[0] - pstartloc[0]);
-    mLocalY1->Fill(phitloc[1] - pstartloc[1]);
-    mLocalZ1->Fill(phitloc[2] - pstartloc[2]);
-    //fLocalX1->Fill(phitloc[0]);
-    //fLocalY1->Fill(phitloc[1]);
-    //fLocalZ1->Fill(phitloc[2]);
+  for (TIter pointiter = TIter(mHitsArray).Begin(); pointiter != TIter::End(); ++pointiter) {
+    Hit *p = static_cast<Hit *>(*pointiter);
+    auto loc = p->GetPos();
+    auto locS = p->GetPosStart();
+    auto glo = mGeometry->getMatrixL2G(p->GetDetectorID())(loc);
+    auto gloS = mGeometry->getMatrixL2G(p->GetDetectorID())(locS);
+    mLocalX0->Fill(locS.X());
+    mLocalY0->Fill(locS.Y());
+    mLocalZ0->Fill(locS.Z());
+    loc.SetXYZ(loc.X()-locS.X(),loc.Y()-locS.Y(),loc.Z()-locS.Z());
+    mLocalX1->Fill(loc.X());
+    mLocalY1->Fill(loc.Y());
+    mLocalZ1->Fill(loc.Z());
   }
 }
 

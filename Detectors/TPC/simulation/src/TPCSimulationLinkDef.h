@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -17,16 +17,14 @@
 #pragma link C++ class o2::TPC::Baseline+;
 #pragma link C++ class o2::TPC::BoxCluster+;
 #pragma link C++ class o2::TPC::BoxClusterer+;
-#pragma link C++ class o2::TPC::CommonMode+;
 #pragma link C++ class o2::TPC::CommonModeContainer+;
-#pragma link C++ class o2::TPC::CommonModeCRU+;
-#pragma link C++ class o2::TPC::CommonModeTime+;
 #pragma link C++ class o2::TPC::Cluster+;
 #pragma link C++ class o2::TPC::Clusterer+;
 #pragma link C++ class o2::TPC::ClusterContainer+;
 #pragma link C++ class o2::TPC::ClustererTask+;
 #pragma link C++ class o2::TPC::Detector+;
 #pragma link C++ class o2::TPC::DigitMC+;
+#pragma link C++ class o2::TPC::DigitMCMetaData+;
 #pragma link C++ class o2::TPC::DigitContainer+;
 #pragma link C++ class o2::TPC::DigitCRU+;
 #pragma link C++ class o2::TPC::Digitizer+;

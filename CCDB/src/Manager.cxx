@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -947,7 +947,7 @@ StorageParameters *Manager::selectSpecificStorage(const TString &path)
   return aPar;
 }
 
-Condition *Manager::getObject(const IdPath &path, Int_t runNumber, Int_t version, Int_t subVersion)
+Condition *Manager::getCondition(const IdPath &path, Int_t runNumber, Int_t version, Int_t subVersion)
 {
   // get an  Condition object from the database
 
@@ -961,17 +961,17 @@ Condition *Manager::getObject(const IdPath &path, Int_t runNumber, Int_t version
     runNumber = mRun;
   }
 
-  return getObject(ConditionId(path, runNumber, runNumber, version, subVersion));
+  return getCondition(ConditionId(path, runNumber, runNumber, version, subVersion));
 }
 
-Condition *Manager::getObject(const IdPath &path, const IdRunRange &runRange, Int_t version, Int_t subVersion)
+Condition *Manager::getCondition(const IdPath &path, const IdRunRange &runRange, Int_t version, Int_t subVersion)
 {
   // get an  Condition object from the database!
 
-  return getObject(ConditionId(path, runRange, version, subVersion));
+  return getCondition(ConditionId(path, runRange, version, subVersion));
 }
 
-Condition *Manager::getObject(const ConditionId &queryId, Bool_t forceCaching)
+Condition *Manager::getCondition(const ConditionId &queryId, Bool_t forceCaching)
 {
   // get an  Condition object from the database
 
@@ -1409,10 +1409,10 @@ Bool_t Manager::putObject(TObject *object, const ConditionId &id, ConditionMetaD
   }
 
   Condition anCondition(object, id, metaData);
-  return putObject(&anCondition, mirrors);
+  return putCondition(&anCondition, mirrors);
 }
 
-Bool_t Manager::putObject(Condition *entry, const char *mirrors)
+Bool_t Manager::putCondition(Condition *entry, const char *mirrors)
 {
   // store an  Condition object into the database
 

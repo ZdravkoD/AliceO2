@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -45,14 +45,14 @@ class FindTracks : public FairTask
 
  private:
 
-  TClonesArray*     mHits;         
+  TClonesArray*     mClusters;         
   TClonesArray*     mTracks;  
 
-  Int_t mNHits;
+  Int_t mNClusters;
   Int_t mNTracks;     
 
   Int_t mTNofEvents;
-  Int_t mTNofHits;
+  Int_t mTNofClusters;
   Int_t mTNofTracks;
 
   EventHeader *mEventHeader;

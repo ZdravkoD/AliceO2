@@ -8,6 +8,8 @@ set(SRCS
   src/TrackReference.cxx
   src/DetID.cxx
   src/GeometryManager.cxx
+  src/BaseCluster.cxx
+  src/DetMatrixCache.cxx
 )
 
 Set(HEADERS
@@ -18,6 +20,8 @@ Set(HEADERS
   include/${MODULE_NAME}/Utils.h
   include/${MODULE_NAME}/DetID.h
   include/${MODULE_NAME}/GeometryManager.h
+  include/${MODULE_NAME}/BaseCluster.h
+  include/${MODULE_NAME}/DetMatrixCache.h
 )
 
 Set(LINKDEF src/BaseLinkDef.h)

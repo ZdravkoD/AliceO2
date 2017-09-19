@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -63,7 +63,7 @@ BOOST_AUTO_TEST_CASE(test_dc_primitives)
 {
   // test the getmax meta program
   std::cout << std::endl << "Testing getmax meta program ..." << std::endl;
-  typedef boost::mpl::vector_c<uint16_t, 0, 1, 2, 3, 4, 31, 32, 64> bitranges;
+  using bitranges = boost::mpl::vector_c<uint16_t, 0, 1, 2, 3, 4, 31, 32, 64>;
   boost::mpl::for_each<bitranges, boost::type<boost::mpl::_> >(getmaxTester());
 
   // test the getnofelements meta program
@@ -82,15 +82,15 @@ BOOST_AUTO_TEST_CASE(test_dc_primitives)
   std::cout << std::endl << "Testing alphabet template ..." << std::endl;
   // declare two types of alphabets: a contiguous range alphabet with symbols
   // between -1 and 10 and a bit-range alphabet for a 10-bit word
-  typedef boost::mpl::string<'T','e','s','t'>::type TestAlphabetName;
-  typedef boost::mpl::string<'1','0','-','b','i','t'>::type TenBitAlphabetName;
-  typedef ContiguousAlphabet<int16_t, -1, 10, TestAlphabetName> TestAlphabet;
-  typedef BitRangeContiguousAlphabet<int16_t, 10, TenBitAlphabetName> TenBitAlphabet;
+  using TestAlphabetName = boost::mpl::string<'T','e','s','t'>::type;
+  using TenBitAlphabetName = boost::mpl::string<'1','0','-','b','i','t'>::type;
+  using TestAlphabet = ContiguousAlphabet<int16_t, -1, 10, TestAlphabetName>;
+  using TenBitAlphabet = BitRangeContiguousAlphabet<int16_t, 10, TenBitAlphabetName>;
 
   // now check a set of values if they are valid in each of the alphabets
   // the check is done at runtime on types of alphabets rather than on
   // actual objects
   std::vector<int16_t> values = {0 , 5, 15, -2, -1};
-  typedef boost::mpl::vector<TestAlphabet, TenBitAlphabet> ParameterSet;
+  using ParameterSet = boost::mpl::vector<TestAlphabet, TenBitAlphabet>;
   boost::mpl::for_each<ParameterSet>( AlphabetTester<std::vector<int16_t>>(values) );
 }

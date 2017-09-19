@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -15,16 +15,17 @@
 #include <TMath.h>
 
 #include "DetectorsBase/Constants.h"
-#include "ITSReconstruction/Cluster.h"
+#include "ITSMFTReconstruction/Cluster.h"
 #include "ITSReconstruction/CookedTrack.h"
 
 ClassImp(o2::ITS::CookedTrack)
 
+using namespace o2::ITSMFT;
 using namespace o2::ITS;
 using namespace o2::Base::Constants;
 using namespace o2::Base::Track;
 
-CookedTrack::CookedTrack() : TObject(), mTrack(), mLabel(-1), mMass(0.14), mChi2(0.)
+CookedTrack::CookedTrack() : TObject(), mTrack(), mMass(0.14), mChi2(0.)
 {
   //--------------------------------------------------------------------
   // This default constructor needs to be provided
@@ -33,7 +34,7 @@ CookedTrack::CookedTrack() : TObject(), mTrack(), mLabel(-1), mMass(0.14), mChi2
 }
 
 CookedTrack::CookedTrack(float x, float alpha, const std::array<float,kNParams> &par, const std::array<float,kCovMatSize> &cov)
-  : TObject(), mTrack(x, alpha, par, cov), mLabel(-1), mMass(0.14), mChi2(0.)
+  : TObject(), mTrack(x, alpha, par, cov), mMass(0.14), mChi2(0.)
 {
   //--------------------------------------------------------------------
   // Main constructor
@@ -144,9 +145,7 @@ Double_t CookedTrack::getPredictedChi2(const Cluster* c) const
   //-----------------------------------------------------------------
   // This function calculates a predicted chi2 increment.
   //-----------------------------------------------------------------
-  std::array<float,2> p{ c->getY(), c->getZ() };
-  std::array<float,3> cov{ c->getSigmaY2(), c->getSigmaYZ(), c->getSigmaZ2() };
-  return mTrack.GetPredictedChi2(p, cov);
+  return mTrack.GetPredictedChi2(*c);
 }
 
 Bool_t CookedTrack::propagate(Double_t alpha, Double_t x, Double_t bz)
@@ -168,10 +167,7 @@ Bool_t CookedTrack::update(const Cluster* c, Double_t chi2, Int_t idx)
   //--------------------------------------------------------------------
   // Update track params
   //--------------------------------------------------------------------
-  std::array<float,2> p{ c->getY(), c->getZ() };
-  std::array<float,3> cov{ c->getSigmaY2(), c->getSigmaYZ(), c->getSigmaZ2() };
-
-  if (!mTrack.Update(p, cov))
+  if (!mTrack.Update(*c))
     return kFALSE;
 
   mChi2 += chi2;

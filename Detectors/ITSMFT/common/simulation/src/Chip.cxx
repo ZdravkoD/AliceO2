@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -16,146 +16,137 @@
 //  Adapted from AliITSUChip by Massimo Masera
 //
 
-#include <cstring>                   // for memset
+#include <cstring>
+#include <tuple>
 
-#include <TMath.h>                    // for Sqrt
-#include "TObjArray.h"                // for TObjArray
+#include <TMath.h>
+#include <TObjArray.h>
+#include <TClonesArray.h>
 
 #include "ITSMFTSimulation/Chip.h"
-#include "ITSMFTSimulation/Point.h"
+#include "ITSMFTSimulation/Hit.h"
+#include "ITSMFTSimulation/DigiParams.h"
 
 using namespace o2::ITSMFT;
+using namespace o2::Base;
 
-Chip::Chip() :
-  TObject(),
-  mChipIndex(-1),
-  mPoints(),
-  mMat(nullptr)
-{
-}
+ClassImp(o2::ITSMFT::Chip);
 
-Chip::Chip(Int_t chipindex, const TGeoHMatrix *mat) :
-  TObject(),
+//_______________________________________________________________________
+Chip::Chip(const DigiParams* par, Int_t chipindex, const o2::Base::Transform3D *mat) :
+  mParams(par),
   mChipIndex(chipindex),
-  mPoints(),
   mMat(mat)
 {
 }
 
+//_______________________________________________________________________
 Chip::Chip(const Chip &ref) = default;
 
+//_______________________________________________________________________
 Chip &Chip::operator=(const Chip &ref)
 {
-  TObject::operator=(ref);
   if (this != &ref) {
     mMat = ref.mMat;
     mChipIndex = ref.mChipIndex;
-    mPoints = ref.mPoints;
+    mHits = ref.mHits;
+    mDigits = ref.mDigits;
   }
   return *this;
 }
 
+//_______________________________________________________________________
 Bool_t Chip::operator==(const Chip &other) const
 {
   return mChipIndex == other.mChipIndex;
 }
 
+//_______________________________________________________________________
 Bool_t Chip::operator!=(const Chip &other) const
 {
   return mChipIndex != other.mChipIndex;
 }
 
+//_______________________________________________________________________
 Bool_t Chip::operator<(const Chip &other) const
 {
   return mChipIndex < other.mChipIndex;
 }
 
-Chip::~Chip()
-= default;
-
-void Chip::InsertPoint(const Point *p)
+//_______________________________________________________________________
+void Chip::InsertHit(const Hit *p)
 {
   if (p->GetDetectorID() != mChipIndex) {
     throw IndexException(mChipIndex, p->GetDetectorID());
   }
-  mPoints.push_back(p);
+  mHits.push_back(p);
 }
 
-const Point *Chip::GetPointAt(Int_t i) const
+//_______________________________________________________________________
+const Hit *Chip::GetHitAt(Int_t i) const
 {
-  if (i < mPoints.size()) {
-    return mPoints[i];
+  if (i < mHits.size()) {
+    return mHits[i];
   }
   return nullptr;
 }
 
-void Chip::Clear(Option_t *opt)
+//_______________________________________________________________________
+void Chip::Clear()
 {
-  mPoints.clear();
+  ClearHits();
 }
 
-Bool_t Chip::LineSegmentLocal(Int_t hitindex,
-Double_t &xstart, Double_t &xpoint,
-Double_t &ystart, Double_t &ypoint,
-Double_t &zstart, Double_t &zpoint, Double_t &timestart, Double_t &eloss) const
-{
-  if (hitindex >= mPoints.size()) {
-    return kFALSE;
-  }
 
-  const Point *tmp = mPoints[hitindex];
-  if (tmp->IsEntering()) {
-    return kFALSE;
-  }
-  Double_t posglob[3] = {tmp->GetX(), tmp->GetY(), tmp->GetZ()},
-    posglobStart[3] = {tmp->GetStartX(), tmp->GetStartY(), tmp->GetStartZ()},
-    posloc[3], poslocStart[3];
-  memset(posloc, 0, sizeof(Double_t) * 3);
-  memset(poslocStart, 0, sizeof(Double_t) * 3);
+//_______________________________________________________________________
+Bool_t Chip::LineSegmentLocal(const Hit* hit,
+			      Double_t &xstart, Double_t &xpoint,
+			      Double_t &ystart, Double_t &ypoint,
+			      Double_t &zstart, Double_t &zpoint, Double_t &timestart, Double_t &eloss) const
+{
+  if (hit->IsEntering()) return kFALSE;
 
   // convert to local position
-  mMat->MasterToLocal(posglob, posloc);
-  mMat->MasterToLocal(posglobStart, poslocStart);
+  auto posLoc  = (*mMat)^( hit->GetPos() );
+  auto posLocS = (*mMat)^( hit->GetPosStart() );  
 
   // Prepare output, hit point relative to starting point
-  xstart = poslocStart[0];
-  ystart = poslocStart[1];
-  zstart = poslocStart[2];
-  xpoint = posloc[0] - poslocStart[0];
-  ypoint = posloc[1] - poslocStart[1];
-  zpoint = posloc[2] - poslocStart[2];
+  // RS: think about returning Point3D
+  xstart = posLocS.X();
+  ystart = posLocS.Y();
+  zstart = posLocS.Z();
+  xpoint = posLoc.X() - xstart;
+  ypoint = posLoc.Y() - ystart;
+  zpoint = posLoc.Z() - zstart;
 
-  timestart = tmp->GetTime();
-  eloss = tmp->GetEnergyLoss();
+  timestart = hit->GetTime();
+  eloss = hit->GetEnergyLoss();
 
   return kTRUE;
 }
 
-Bool_t Chip::LineSegmentGlobal(Int_t hitindex, Double_t &xstart, Double_t &xpoint, Double_t &ystart, Double_t &ypoint,
+
+//_______________________________________________________________________
+Bool_t Chip::LineSegmentGlobal(const Hit* hit, Double_t &xstart, Double_t &xpoint, Double_t &ystart, Double_t &ypoint,
                                Double_t &zstart, Double_t &zpoint, Double_t &timestart, Double_t &eloss) const
 {
-  if (hitindex >= mPoints.size()) {
-    return kFALSE;
-  }
-  const Point *tmp = mPoints[hitindex];
-  if (tmp->IsEntering()) {
-    return kFALSE;
-  }
+  if (hit->IsEntering()) return kFALSE;
 
   // Fill output fields
-  xstart = tmp->GetStartX();
-  ystart = tmp->GetStartY();
-  zstart = tmp->GetStartZ();
-  xpoint = tmp->GetX() - xstart;
-  ypoint = tmp->GetY() - ystart;
-  zpoint = tmp->GetY() - zstart;
-  timestart = tmp->GetTime();
-  eloss = tmp->GetEnergyLoss();
+  xstart = hit->GetStartX();
+  ystart = hit->GetStartY();
+  zstart = hit->GetStartZ();
+  xpoint = hit->GetX() - xstart;
+  ypoint = hit->GetY() - ystart;
+  zpoint = hit->GetY() - zstart;
+  timestart = hit->GetTime();
+  eloss = hit->GetEnergyLoss();
 
   return kTRUE;
 }
 
-Double_t Chip::PathLength(const Point *p1, const Point *p2) const
+//_______________________________________________________________________
+Double_t Chip::PathLength(const Hit *p1, const Hit *p2) const
 {
   Double_t xdiff = p2->GetX() - p1->GetX(),
     ydiff = p2->GetY() - p1->GetY(),
@@ -163,44 +154,86 @@ Double_t Chip::PathLength(const Point *p1, const Point *p2) const
   return TMath::Sqrt(xdiff * xdiff + ydiff * ydiff + zdiff * zdiff);
 }
 
-void Chip::MedianHitGlobal(const Point *p1, const Point *p2, Double_t &x, Double_t &y, Double_t &z) const
+//_______________________________________________________________________
+void Chip::MedianHitGlobal(const Hit *p1, const Hit *p2, Double_t &x, Double_t &y, Double_t &z) const
 {
   // Get hit positions in global coordinates
-  Double_t pos1Glob[3] = {p1->GetX(), p1->GetY(), p1->GetZ()},
-    pos2Glob[3] = {p2->GetX(), p2->GetY(), p2->GetZ()}, posMedianLocal[3], posMedianGlobal[3];
+  Double_t pos1Glob[3] = {p1->GetX(), p1->GetY(), p1->GetZ()},pos2Glob[3] = {p2->GetX(), p2->GetY(), p2->GetZ()};
+  Point3D<float> posMedianLocal;
 
   // Calculate mean positions
-  posMedianLocal[1] = 0.;
+  posMedianLocal.SetX(0.f);
   if ((pos1Glob[1] * pos2Glob[1]) < 0.) {
-    posMedianLocal[0] = (-pos1Glob[1] / (pos2Glob[1] - pos1Glob[1])) * (pos2Glob[0] - pos1Glob[0]) + pos1Glob[0];
-    posMedianLocal[2] = (-pos1Glob[1] / (pos2Glob[1] - pos1Glob[1])) * (pos2Glob[2] - pos1Glob[2]) + pos1Glob[2];
+    posMedianLocal.SetY( (-pos1Glob[1] / (pos2Glob[1] - pos1Glob[1])) * (pos2Glob[0] - pos1Glob[0]) + pos1Glob[0] );
+    posMedianLocal.SetZ( (-pos1Glob[1] / (pos2Glob[1] - pos1Glob[1])) * (pos2Glob[2] - pos1Glob[2]) + pos1Glob[2] );
   } else {
-    posMedianLocal[0] = 0.5 * (pos1Glob[0] + pos2Glob[0]);
-    posMedianLocal[2] = 0.5 * (pos1Glob[2] + pos2Glob[2]);
+    posMedianLocal.SetY( 0.5 * (pos1Glob[0] + pos2Glob[0]) );
+    posMedianLocal.SetZ( 0.5 * (pos1Glob[2] + pos2Glob[2]) );
   }
 
   // Convert to global coordinates
-  mMat->LocalToMaster(posMedianLocal, posMedianGlobal);
-  x = posMedianGlobal[0];
-  y = posMedianGlobal[1];
-  z = posMedianGlobal[2];
+  auto posMedianGlobal = (*mMat)(posMedianLocal);
+  x = posMedianGlobal.X();
+  y = posMedianGlobal.Y();
+  z = posMedianGlobal.Z();
 }
 
-void Chip::MedianHitLocal(const Point *p1, const Point *p2, Double_t &x, Double_t &y, Double_t &z) const
+//_______________________________________________________________________
+void Chip::MedianHitLocal(const Hit *p1, const Hit *p2, Double_t &x, Double_t &y, Double_t &z) const
 {
   // Convert hit positions into local positions inside the chip
-  Double_t pos1Glob[3] = {p1->GetX(), p1->GetY(), p1->GetZ()},
-    pos2Glob[3] = {p2->GetX(), p2->GetY(), p2->GetZ()}, pos1Loc[3], pos2Loc[3];
-  mMat->MasterToLocal(pos1Glob, pos1Loc);
-  mMat->MasterToLocal(pos2Glob, pos2Loc);
-
+  auto pos1Loc = (*mMat)^(p1->GetPos());
+  auto pos2Loc = (*mMat)^(p2->GetPos());
+  
   // Calculate mean positions
   y = 0.;
-  if ((pos1Loc[1] * pos2Loc[1]) < 0.) {
-    x = (-pos1Loc[1] / (pos2Loc[1] - pos1Loc[1])) * (pos2Loc[0] - pos1Loc[0]) + pos1Loc[0];
-    z = (-pos1Loc[1] / (pos2Loc[1] - pos1Loc[1])) * (pos2Loc[2] - pos1Loc[2]) + pos1Loc[2];
+  if ((pos1Loc.Y() * pos2Loc.Y()) < 0.) {
+    x = (-pos1Loc.Y() / (pos2Loc.Y() - pos1Loc.Y())) * (pos2Loc.X() - pos1Loc.X()) + pos1Loc.X();
+    z = (-pos1Loc.Y() / (pos2Loc.Y() - pos1Loc.Y())) * (pos2Loc.Z() - pos1Loc.Z()) + pos1Loc.Z();
   } else {
-    x = 0.5 * (pos1Loc[0] + pos2Loc[0]);
-    z = 0.5 * (pos1Loc[2] + pos2Loc[2]);
+    x = 0.5 * (pos1Loc.X() + pos2Loc.X());
+    z = 0.5 * (pos1Loc.Z() + pos2Loc.Z());
   }
+}
+
+//_______________________________________________________________________
+Digit* Chip::addDigit(UInt_t roframe, UShort_t row, UShort_t col, float charge, Label lbl, double timestamp)
+{
+  auto key = Digit::getOrderingKey(roframe,row,col);
+  auto dig = findDigit(key);
+  if (dig) {
+    dig->addCharge(charge, lbl);
+  }
+  else {
+    auto digIter= mDigits.emplace(std::make_pair
+				  (key,Digit(static_cast<UShort_t>(mChipIndex),roframe, row, col, charge, timestamp)));
+    auto pair = digIter.first;
+    dig = &(pair->second);
+    dig->setLabel(0, lbl);
+  }
+  return dig;
+}
+
+//______________________________________________________________________
+void Chip::fillOutputContainer(TClonesArray* digits, UInt_t maxFrame)
+{
+  // transfer digits with RO Frame < maxFrame to the output array
+  if (mDigits.empty()) return;
+  auto itBeg = mDigits.begin();
+  auto iter = itBeg;
+  ULong64_t maxKey = Digit::getOrderingKey(maxFrame+1,0,0);
+  for (; iter!=mDigits.end(); ++iter) {
+    if (iter->first > maxKey) break; // is the digit ROFrame from the key > the max requested frame
+    // apply thrshold
+    Digit &dig = iter->second;
+    //printf("Chip%d Fr:%d Q:%f R:%d C:%d\n",dig.getChipIndex(),dig.getROFrame(),dig.getCharge(), dig.getRow(),dig.getColumn());
+
+    if (dig.getCharge()>mParams->getThreshold() ) {
+      new( (*digits)[digits->GetEntriesFast()] ) Digit( dig );
+    }
+  }
+
+  //  if (iter!=mDigits.end()) iter--;
+  mDigits.erase(itBeg, iter);
+  
 }

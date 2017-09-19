@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -28,8 +28,8 @@
 //  @brief  FairRoot/ALFA interface to ALICE HLT code
 
 #include "AliHLTDataTypes.h"
-namespace ALICE {
-namespace HLT {
+namespace o2 {
+namespace alice_hlt {
 
 /// @class SystemInterface
 /// Tool class for the ALICE HLT external interface defined in
@@ -133,6 +133,6 @@ private:
   AliHLTAnalysisEnvironment     mEnvironment;
 };
 
-} // namespace hlt
-} // namespace alice
+} // namespace alice_hlt
+} // namespace o2
 #endif // SYSTEMINTERFACE_H

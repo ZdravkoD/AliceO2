@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -52,7 +52,7 @@ using std::chrono::system_clock;
 typedef std::chrono::duration<int,std::ratio<60*60*24> > PeriodDay;
 const std::chrono::time_point<system_clock, PeriodDay> dayref=std::chrono::time_point_cast<PeriodDay>(system_clock::now());
 
-using namespace ALICE::HLT;
+using namespace o2::alice_hlt;
 
 EventSampler::EventSampler(int verbosity)
   : mEventPeriod(-1)

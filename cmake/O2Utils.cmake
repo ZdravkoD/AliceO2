@@ -84,7 +84,7 @@ function(GET_BUCKET_CONTENT
 #  message("${INDENTATION}    RESULT_SYSTEMINC_DIRS_VAR_NAME = ${RESULT_SYSTEMINC_DIRS_VAR_NAME}")
 
   if (NOT DEFINED bucket_map_${BUCKET_NAME})
-    message(FATAL_ERROR "${INDENTATION}bucket ${BUCKET_NAME} not defined. Use o2_define_bucket to define it.")
+    message(FATAL_ERROR "${INDENTATION}bucket ${BUCKET_NAME} not defined. Use o2_define_bucket to define it in `cmake/O2Dependencies.cmake'.")
   endif ()
   list (FIND RECURSIVE_BUCKETS ${BUCKET_NAME} _index)
   if (${_index} GREATER -1)
@@ -265,11 +265,7 @@ macro(O2_GENERATE_LIBRARY)
   endforeach ()
 
   ############### build the library #####################
-  if (${CMAKE_GENERATOR} MATCHES Xcode)
-    Add_Library(${Int_LIB} SHARED ${Int_SRCS} ${NO_DICT_SRCS} ${HDRS} ${LINKDEF})
-  else ()
-    Add_Library(${Int_LIB} SHARED ${Int_SRCS} ${NO_DICT_SRCS} ${LINKDEF})
-  endif ()
+  Add_Library(${Int_LIB} SHARED ${Int_SRCS} ${NO_DICT_SRCS} ${HDRS} ${LINKDEF})
 
   ############### Add dependencies ######################
   o2_target_link_bucket(TARGET ${Int_LIB} BUCKET ${BUCKET_NAME})
@@ -285,6 +281,15 @@ macro(O2_GENERATE_LIBRARY)
   ############### install the library ###################
   install(TARGETS ${Int_LIB} DESTINATION lib)
 
+  # public header files must be in include/${MODULE_NAME}, make sure there
+  # are no header files directly in include
+  # TODO: this should probably be combined with what has been defined as
+  # HEADERS.
+  file(GLOB PUBLIC_HEADERS_IN_WRONG_PLACE ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h)
+  if(PUBLIC_HEADERS_IN_WRONG_PLACE)
+    Message("found header files: ${PUBLIC_HEADERS_IN_WRONG_PLACE}")
+    Message(FATAL_ERROR "public header files required to be in 'include/<modulename>'")
+  endif()
   # Install all the public headers
   if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/include/${MODULE_NAME})
     install(DIRECTORY include/${MODULE_NAME} DESTINATION include)
@@ -312,7 +317,21 @@ function(O2_GENERATE_EXECUTABLE)
   CHECK_VARIABLE(PARSED_ARGS_EXE_NAME "You must provide an executable name")
   CHECK_VARIABLE(PARSED_ARGS_BUCKET_NAME "You must provide a bucket name")
   CHECK_VARIABLE(PARSED_ARGS_SOURCES "You must provide the list of sources")
-#  CHECK_VARIABLE(PARSED_ARGS_MODULE_LIBRARY_NAME "You must provide the module library name this executable belongs to")
+  # note: LIBRARY_NAME is not mandatory
+
+  #######################################################
+  # check that the module/directory name and application name can be distinguished
+  # on case insensitive file systems
+  string(FIND ${CMAKE_CURRENT_BINARY_DIR} "/" CURRENT_BINARY_DIR_START REVERSE)
+  string(LENGTH ${CMAKE_CURRENT_BINARY_DIR} CURRENT_BINARY_DIR_LENGTH)
+  math(EXPR CURRENT_BINARY_DIR_START "${CURRENT_BINARY_DIR_START}+1")
+  math(EXPR CURRENT_BINARY_DIR_LENGTH "${CURRENT_BINARY_DIR_LENGTH}-${CURRENT_BINARY_DIR_START}")
+  string(SUBSTRING ${CMAKE_CURRENT_BINARY_DIR} ${CURRENT_BINARY_DIR_START} ${CURRENT_BINARY_DIR_LENGTH} CURRENT_BINARY_DIR_NAME)
+  string(TOLOWER ${CURRENT_BINARY_DIR_NAME} CURRENT_BINARY_DIR_NAME_LOWER)
+  string(TOLOWER ${PARSED_ARGS_EXE_NAME} EXE_NAME_LOWER)
+  if (CURRENT_BINARY_DIR_NAME_LOWER STREQUAL EXE_NAME_LOWER)
+    message(FATAL_ERROR "module name ${CURRENT_BINARY_DIR_NAME} and application name ${PARSED_ARGS_EXE_NAME} can not be distinguished on case-insensitive file systems. Please choose different names to avoid compilation errors")
+  endif()
 
   ############### build the library #####################
   ADD_EXECUTABLE(${PARSED_ARGS_EXE_NAME} ${PARSED_ARGS_SOURCES})
@@ -332,6 +351,44 @@ function(O2_GENERATE_EXECUTABLE)
   endif ()
 
 endfunction(O2_GENERATE_EXECUTABLE)
+
+function(O2_FRAMEWORK_WORKFLOW)
+  cmake_parse_arguments(
+      PARSED_ARGS
+      "NO_INSTALL" # bool args
+      "WORKFLOW_NAME" # mono-valued arguments
+      "DETECTOR_BUCKETS;SOURCES" # multi-valued arguments
+      ${ARGN} # arguments
+  )
+
+CHECK_VARIABLE(PARSED_ARGS_WORKFLOW_NAME "You must provide an executable name")
+  CHECK_VARIABLE(PARSED_ARGS_DETECTOR_BUCKETS "You must provide a bucket name")
+  CHECK_VARIABLE(PARSED_ARGS_SOURCES "You must provide the list of sources")
+
+  ############### build the executable #####################
+  ADD_EXECUTABLE(${PARSED_ARGS_WORKFLOW_NAME} ${PARSED_ARGS_SOURCES})
+  FOREACH(bucket ${PARSED_ARGS_DETECTOR_BUCKETS})
+    MESSAGE(${bucket})
+    O2_TARGET_LINK_BUCKET(
+      TARGET ${PARSED_ARGS_WORKFLOW_NAME}
+      BUCKET ${bucket}
+      EXE TRUE
+    )
+  ENDFOREACH()
+  O2_TARGET_LINK_BUCKET(
+    TARGET ${PARSED_ARGS_WORKFLOW_NAME}
+    BUCKET FrameworkApplication_bucket
+    EXE TRUE
+  )
+  if (NOT ${PARSED_ARGS_NO_INSTALL})
+    ############### install the executable #################
+    install(TARGETS ${PARSED_ARGS_EXE_NAME} DESTINATION bin)
+
+    ############### install the library ###################
+    install(TARGETS ${PARSED_ARGS_MODULE_LIBRARY_NAME} DESTINATION lib)
+  endif ()
+
+endfunction(O2_FRAMEWORK_WORKFLOW)
 
 
 #------------------------------------------------------------------------------
@@ -504,18 +561,21 @@ function(O2_GENERATE_MAN)
       COMMAND nroff -Tascii -man ${CMAKE_CURRENT_SOURCE_DIR}/doc/${PARSED_ARGS_NAME}.${PARSED_ARGS_SECTION}.in > ${CMAKE_CURRENT_BINARY_DIR}/${PARSED_ARGS_NAME}.${PARSED_ARGS_SECTION}
       VERBATIM
     )
-    ADD_CUSTOM_TARGET(${PARSED_ARGS_NAME}.${PARSED_ARGS_SECTION} DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${PARSED_ARGS_NAME}.${PARSED_ARGS_SECTION})
+    # the prefix man. for the target name avoids circular dependencies for the
+    # man pages added at top level. Simply droping the dependency for those
+    # does not invoke the custom command on all systems.
+    set(CUSTOM_TARGET_NAME man.${PARSED_ARGS_NAME}.${PARSED_ARGS_SECTION})
+    ADD_CUSTOM_TARGET(${CUSTOM_TARGET_NAME} DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${PARSED_ARGS_NAME}.${PARSED_ARGS_SECTION})
     if (PARSED_ARGS_MODULE)
       # add to the man target of specified module
-      add_dependencies(${PARSED_ARGS_MODULE}.man ${PARSED_ARGS_NAME}.${PARSED_ARGS_SECTION})
+      add_dependencies(${PARSED_ARGS_MODULE}.man ${CUSTOM_TARGET_NAME})
     elseif(MODULE_NAME)
       # add to the man target of current module
-      add_dependencies(${MODULE_NAME}.man ${PARSED_ARGS_NAME}.${PARSED_ARGS_SECTION})
+      add_dependencies(${MODULE_NAME}.man ${CUSTOM_TARGET_NAME})
     else()
       # add to top level target otherwise
-      add_dependencies(man ${PARSED_ARGS_NAME}.${PARSED_ARGS_SECTION})
+      add_dependencies(man ${CUSTOM_TARGET_NAME})
     endif()
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${PARSED_ARGS_NAME}.${PARSED_ARGS_SECTION} DESTINATION share/man/man${PARSED_ARGS_SECTION})
   endif(NROFF_FOUND)
 endfunction(O2_GENERATE_MAN)
-

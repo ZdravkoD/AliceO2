@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -39,8 +39,7 @@
 #include <cassert>
 #include <sstream>
 
-using namespace o2::AliceHLT;
-using namespace ALICE::HLT;
+using namespace o2::alice_hlt;
 using std::cerr;
 using std::endl;
 using std::unique_ptr;
@@ -202,7 +201,7 @@ int MessageFormat::readHOMERFormat(uint8_t* buffer, unsigned size,
                                    vector<BlockDescriptor>& descriptorList) const
 {
   // read message payload in HOMER format
-  if (mpFactory == nullptr) const_cast<MessageFormat*>(this)->mpFactory = new ALICE::HLT::HOMERFactory;
+  if (mpFactory == nullptr) const_cast<MessageFormat*>(this)->mpFactory = new o2::alice_hlt::HOMERFactory;
   if (buffer == nullptr || mpFactory == nullptr) return -EINVAL;
   unique_ptr<AliHLTHOMERReader> reader(mpFactory->OpenReaderBuffer(buffer, size));
   if (reader.get() == nullptr) return -ENOMEM;
@@ -516,7 +515,7 @@ AliHLTHOMERWriter* MessageFormat::createHOMERFormat(const AliHLTComponentBlockDa
 {
   // send data blocks in HOMER format in one message
   int iResult = 0;
-  if (mpFactory == nullptr) const_cast<MessageFormat*>(this)->mpFactory = new ALICE::HLT::HOMERFactory;
+  if (mpFactory == nullptr) const_cast<MessageFormat*>(this)->mpFactory = new o2::alice_hlt::HOMERFactory;
   if (!mpFactory) return nullptr;
   unique_ptr<AliHLTHOMERWriter> writer(mpFactory->OpenWriter());
   if (writer.get() == nullptr) return nullptr;

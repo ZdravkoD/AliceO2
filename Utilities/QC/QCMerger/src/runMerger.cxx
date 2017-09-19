@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -38,7 +38,6 @@ namespace bpo = boost::program_options;
 
 namespace
 {
-const int NUMBER_OF_IO_THREADS = 1;
 const int NUMBER_OF_REQUIRED_PROGRAM_PARAMETERS = 6;
 ostringstream localAddress;
 
@@ -97,12 +96,11 @@ int main(int argc, char** argv)
   bpo::store(bpo::command_line_parser(argc, argv).options(options).run(), vm);
   bpo::notify(vm);
 
-  MergerDevice mergerDevice(unique_ptr<Merger>(new Merger(NUMBER_OF_QC_OBJECTS_FOR_COMPLETE_DATA)), MERGER_DEVICE_ID,
-                            NUMBER_OF_IO_THREADS);
+  MergerDevice mergerDevice(unique_ptr<Merger>(new Merger(NUMBER_OF_QC_OBJECTS_FOR_COMPLETE_DATA)), MERGER_DEVICE_ID);
   mergerDevice.CatchSignals();
 
   LOG(INFO) << "PID: " << getpid();
-  LOG(INFO) << "Merger id: " << mergerDevice.GetProperty(MergerDevice::Id, "default_id");
+  LOG(INFO) << "Merger id: " << mergerDevice.GetId();
 
   mergerDevice.establishChannel("pull", "bind", stringLocalAddress.c_str(), "data-in", INPUT_BUFFER_SIZE,
                                 INPUT_BUFFER_SIZE);

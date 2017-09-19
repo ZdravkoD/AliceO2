@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -33,26 +33,10 @@ void DigitTime::setDigit(size_t hitID, int cru, int row, int pad, float charge)
   mTotalChargeTimeBin+=charge;
 }
 
-void DigitTime::fillOutputContainer(TClonesArray *output, int cru, int timeBin)
+void DigitTime::fillOutputContainer(TClonesArray *output, TClonesArray *debug, int cru, int timeBin, float commonMode)
 {
   for(auto &aRow : mRows) {
     if(aRow == nullptr) continue;
-    aRow->fillOutputContainer(output, cru, timeBin, aRow->getRow());
-  }
-}
-
-void DigitTime::fillOutputContainer(TClonesArray *output, int cru, int timeBin, std::vector<CommonMode> &commonModeContainer)
-{
-  float commonMode =0;
-  for (auto &aCommonMode :commonModeContainer){
-    if(aCommonMode.getCRU() == cru && aCommonMode.getTimeBin() == timeBin) {
-      commonMode = aCommonMode.getCommonMode();
-      break;
-    }
-  }
-
-  for(auto &aRow : mRows) {
-    if(aRow == nullptr) continue;
-    aRow->fillOutputContainer(output, cru, timeBin, aRow->getRow(), commonMode);
+    aRow->fillOutputContainer(output, debug, cru, timeBin, aRow->getRow(), commonMode);
   }
 }

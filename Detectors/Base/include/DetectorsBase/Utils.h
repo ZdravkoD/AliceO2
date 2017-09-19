@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -76,6 +76,18 @@ namespace o2 {
         return Sector2Angle(Angle2Sector(phi));
       }
 
+      //-------------------------------------->>>
+      // recursive creation of bitmask
+      template<typename T>
+	constexpr int bit2Mask(T v) {
+	return 0x1<<v;
+      }
+
+      template<typename T, typename... Args>
+	constexpr int bit2Mask(T first, Args... args) {
+	return (0x1<<first) | bit2Mask(args...);
+      }
+      //--------------------------------------<<<
     }
   }
 }

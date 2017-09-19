@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -69,8 +69,8 @@ class HitAnalysis : public FairTask
     Bool_t mIsInitialized;       ///< Check whether task is initialized
     Bool_t mProcessChips;        ///< Process chips or hits
     std::map<int, o2::ITSMFT::Chip *> mChips; ///< lookup map for ITS chips
-    TClonesArray *mPointsArray;        ///< Array with ITS space points, filled by the FairRootManager
-    GeometryTGeo *mGeometry;           ///<  geometry
+    TClonesArray *mHitsArray;        ///< Array with ITS space points, filled by the FairRootManager
+    const GeometryTGeo *mGeometry;           ///<  geometry
     TH1 *mLineSegment;        ///< Histogram for line segment
     TH1 *mLocalX0;            ///< Histogram for Starting X position in local coordinates
     TH1 *mLocalX1;            ///< Histogram for Hit X position in local coordinates

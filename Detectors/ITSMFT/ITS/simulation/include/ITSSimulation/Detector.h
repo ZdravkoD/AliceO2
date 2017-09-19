@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -31,9 +31,8 @@ class TParticle;
 
 class TString;
 
-namespace o2 { namespace ITSMFT { class Point; }}
+namespace o2 { namespace ITSMFT { class Hit; }}
 
-namespace o2 { namespace ITS { class GeometryHandler; }}
 namespace o2 { namespace ITS { class MisalignmentParameter; }}
 namespace o2 { namespace ITS { class GeometryTGeo; }}
 namespace o2 { namespace ITS { class V3Layer; }}
@@ -153,8 +152,8 @@ class Detector : public o2::Base::Detector
                                     Double_t &width, Double_t &tilt, Double_t &lthick, Double_t &mthick,
                                     UInt_t &dettype) const;
 
-    /// This method is an example of how to add your own point of type Point to the clones array
-    o2::ITSMFT::Point *addHit(int trackID, int detID, TVector3 startPos, TVector3 endPos, TVector3 startMom,
+    /// This method is an example of how to add your own point of type Hit to the clones array
+    o2::ITSMFT::Hit *addHit(int trackID, int detID, TVector3 startPos, TVector3 endPos, TVector3 startMom,
 				   double startE, double endTime, double eLoss,
 				   unsigned char startStatus, unsigned char endStatus);
 
@@ -297,7 +296,7 @@ class Detector : public o2::Base::Detector
     Int_t *mBuildLevel;            //! Vector of Material Budget Studies
 
     /// Container for data points
-    TClonesArray *mPointCollection;
+    TClonesArray *mHitCollection;
 
     /// Creates an air-filled wrapper cylindrical volume
     TGeoVolume *createWrapperVolume(const Int_t nLay);
@@ -315,7 +314,6 @@ class Detector : public o2::Base::Detector
 
     Detector &operator=(const Detector &);
 
-    GeometryHandler *mGeometryHandler;
     MisalignmentParameter *mMisalignmentParameter;
 
     V3Layer **mGeometry;   //! Geometry

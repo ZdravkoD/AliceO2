@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -13,7 +13,6 @@
 /// \author ruben.shahoyan@cern.ch
 
 #include "Field/MagneticField.h"
-#include "Field/MagFieldFast.h"
 #include <TFile.h>                     // for TFile
 #include <TPRegexp.h>                  // for TPRegexp
 #include <TSystem.h>                   // for TSystem, gSystem
@@ -228,7 +227,7 @@ Bool_t MagneticField::loadParameterization()
   return kTRUE;
 }
 
-void MagneticField::GetFieldValue(const Double_t *xyz, Double_t *b)
+void MagneticField::Field(const Double_t * __restrict__ xyz, Double_t * __restrict__ b)
 {
   /*
    * query field value at point
@@ -323,7 +322,7 @@ void MagneticField::initializeMachineField(MagFieldParam::BeamType_t btype, Doub
   mCompensatorField2A = 11.7905;
 }
 
-void MagneticField::MachineField(const Double_t *x, Double_t *b) const
+void MagneticField::MachineField(const Double_t * __restrict__ x, Double_t * __restrict__ b) const
 {
   // ---- This is the ZDC part
   // Compansators for Alice Muon Arm Dipole

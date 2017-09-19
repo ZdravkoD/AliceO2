@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -46,7 +46,7 @@
 using std::string;
 using std::vector;
 using std::unique_ptr;
-using namespace ALICE::HLT;
+using namespace o2::alice_hlt;
 
 using std::chrono::system_clock;
 using TimeScale = std::chrono::milliseconds;
@@ -93,7 +93,7 @@ void WrapperDevice::InitTask()
 
   int iResult=0;
 
-  std::unique_ptr<Component> component(new ALICE::HLT::Component);
+  std::unique_ptr<Component> component(new o2::alice_hlt::Component);
   if (!component.get()) return /*-ENOMEM*/;
 
   // loop over program options, check if the option was used and
@@ -135,7 +135,7 @@ void WrapperDevice::InitTask()
   // id is now specified with the --id option of FairMQProgOptions
   string idkey="--instance-id";
   string id="";
-  id=GetProperty(FairMQDevice::Id, id);
+  id=GetId();
   vector<char*> argv;
   argv.emplace_back(&idkey[0]);
   argv.emplace_back(&id[0]);
@@ -247,7 +247,7 @@ void WrapperDevice::Run()
 
     if (!mSkipProcessing) {
       // prepare input from messages
-      vector<o2::AliceHLT::MessageFormat::BufferDesc_t> dataArray;
+      vector<o2::alice_hlt::MessageFormat::BufferDesc_t> dataArray;
       for (auto& socketInput : socketInputs) {
         for (auto& msg : socketInput.fParts) {
           void* buffer=msg->GetData();

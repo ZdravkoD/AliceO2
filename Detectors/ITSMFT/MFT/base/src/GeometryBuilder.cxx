@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -72,13 +72,13 @@ void GeometryBuilder::buildGeometry()
   }
 
   /// \todo Add the service, Barrel, etc Those objects will probably be defined into the COMMON ITSMFT area.
-  /*
+  
   auto * halfCone = new HalfCone();
   TGeoVolumeAssembly * halfCone1 = halfCone->createHalfCone(0);
   TGeoVolumeAssembly * halfCone2 = halfCone->createHalfCone(1);
   volMFT->AddNode(halfCone1,1);
   volMFT->AddNode(halfCone2,1);
-  */
+  
   vALIC->AddNode(volMFT,0);
 
 }

@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -24,11 +24,15 @@
 
 #pragma link C++ class o2::Data::Stack+;
 #pragma link C++ class MCTrack+;
+#pragma link C++ class o2::MCCompLabel+;
 
-#pragma link C++ class ROOT::Math::Cartesian3D<float>+;
-#pragma link C++ class ROOT::Math::PositionVector3D<ROOT::Math::Cartesian3D<float>,ROOT::Math::DefaultCoordinateSystemTag>+;
 #pragma link C++ class o2::BaseHit+;
 #pragma link C++ class o2::BasicXYZEHit<float,float>+;
 #pragma link C++ class o2::BasicXYZEHit<double,double>+;
+#pragma link C++ struct o2::dataformats::MCTruthHeaderElement+;
+#pragma link C++ class o2::dataformats::MCTruthContainer<long>+;
+#pragma link C++ class o2::dataformats::MCTruthContainer<o2::MCCompLabel>+;
+#pragma link C++ class std::vector<o2::MCCompLabel>+;
+#pragma link C++ class std::vector<o2::dataformats::MCTruthHeaderElement>+;
 
 #endif

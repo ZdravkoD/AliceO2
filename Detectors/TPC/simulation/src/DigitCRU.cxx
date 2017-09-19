@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -45,7 +45,7 @@ void DigitCRU::setDigit(size_t hitID, int timeBin, int row, int pad, float charg
   }
 }
 
-void DigitCRU::fillOutputContainer(TClonesArray *output, int cru, int eventTime, bool isContinuous)
+void DigitCRU::fillOutputContainer(TClonesArray *output, TClonesArray *debug, int cru, int eventTime, bool isContinuous)
 {
   int nProcessedTimeBins = 0;
   for(auto &aTime : mTimeBins) {
@@ -54,7 +54,7 @@ void DigitCRU::fillOutputContainer(TClonesArray *output, int cru, int eventTime,
     if( ( nProcessedTimeBins + mFirstTimeBin < eventTime ) || !isContinuous) {
       ++nProcessedTimeBins;
       if(aTime == nullptr) continue;
-      aTime->fillOutputContainer(output, cru, aTime->getTimeBin());
+      aTime->fillOutputContainer(output, debug, cru, aTime->getTimeBin(), mCommonModeContainer.getCommonMode(cru, aTime->getTimeBin()));
     }
     else break;
   }
@@ -65,21 +65,4 @@ void DigitCRU::fillOutputContainer(TClonesArray *output, int cru, int eventTime,
     }
   }
   if(!isContinuous) mFirstTimeBin = 0;
-}
-
-void DigitCRU::fillOutputContainer(TClonesArray *output, int cru, std::vector<CommonMode> &commonModeContainer)
-{
-  for(auto &aTime : mTimeBins) {
-    if(aTime == nullptr) continue;
-    aTime->fillOutputContainer(output, cru, aTime->getTimeBin(), commonModeContainer);
-  }
-}
-
-void DigitCRU::processCommonMode(std::vector<CommonMode> & commonModeCRU, int cru)
-{
-  for(auto &aTime : mTimeBins) {
-    if(aTime == nullptr) continue;
-    CommonMode commonMode(cru, aTime->getTimeBin(), aTime->getTotalChargeTimeBin());
-    commonModeCRU.emplace_back(commonMode);
-  }
 }

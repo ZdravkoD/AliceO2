@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -33,8 +33,8 @@
 
 namespace bpo = boost::program_options;
 
-namespace ALICE {
-namespace HLT {
+namespace o2 {
+namespace alice_hlt {
 class Component;
 
 /// @class EventSampler
@@ -104,6 +104,6 @@ private:
   std::string mLatencyLogFileName;   // output file for logging of latency
 };
 
-} // namespace hlt
-} // namespace alice
+} // namespace alice_hlt
+} // namespace o2
 #endif // EVENTSAMPLER_H

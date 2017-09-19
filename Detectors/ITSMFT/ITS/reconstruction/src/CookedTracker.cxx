@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -26,14 +26,20 @@
 #include "FairLogger.h"
 
 #include "DetectorsBase/Constants.h"
+#include "DetectorsBase/Utils.h"
 #include "Field/MagneticField.h"
-#include "ITSReconstruction/Cluster.h"
+#include "ITSMFTReconstruction/Cluster.h"
 #include "ITSReconstruction/CookedTrack.h"
 #include "ITSReconstruction/CookedTracker.h"
+#include "SimulationDataFormat/MCCompLabel.h"
 
 using namespace o2::ITS;
+using namespace o2::ITSMFT;
 using namespace o2::Base::Constants;
+using namespace o2::Base::Utils;
 using o2::field::MagneticField;
+using Label = o2::MCCompLabel;
+using Point3Df = Point3D<float>;
 
 //************************************************
 // Constants hardcoded for the moment:
@@ -100,49 +106,51 @@ void CookedTracker::cookLabel(CookedTrack& t, Float_t wrong) const
   Int_t noc = t.getNumberOfClusters();
   if (noc < 1)
     return;
-  std::vector<Int_t> lb(noc, 0);
-  std::vector<Int_t> mx(noc, 0);
-  std::vector<Cluster*> clusters(noc);
-
-  Int_t i;
-  for (i = 0; i < noc; i++) {
+  std::array<Label, Cluster::maxLabels*CookedTracker::kNLayers > lb;
+  std::array<Int_t, Cluster::maxLabels*CookedTracker::kNLayers > mx;
+  std::array<Cluster*,CookedTracker::kNLayers> clusters;
+  int nLabels = 0;
+  
+  for (int i=noc; i--;) {
     Int_t index = t.getClusterIndex(i);
     clusters[i] = getCluster(index);
   }
 
-  Int_t lab = 123456789;
-  for (i = 0; i < noc; i++) {
+  Label lab;
+  for (int i=noc; i--;) {
     Cluster* c = clusters[i];
-    lab = TMath::Abs(c->getLabel(0));
-    Int_t j;
-    for (j = 0; j < noc; j++)
-      if (lb[j] == lab || mx[j] == 0)
-        break;
-    if (j < noc) {
-      lb[j] = lab;
-      (mx[j])++;
+    for (int il=0;il<Cluster::maxLabels;il++) { // check all labels of the cluster
+      lab = c->getLabel(il);
+      if ( lab.isEmpty() ) break; // all following labels will be empty also
+      // was this label already accounted for ?
+      bool add = true;
+      for (int j=nLabels; j--;) {
+	if ( lb[j] == lab ) {
+	  add = false;
+	  mx[j]++; // just increment counter
+	  break;
+	}
+      }
+      if (add) {
+	lb[nLabels] = lab;
+	mx[nLabels] = 1;
+      }
     }
   }
-
-  Int_t max = 0;
-  for (i = 0; i < noc; i++)
-    if (mx[i] > max) {
-      max = mx[i];
+  
+  Int_t maxL = 0; // find most encountered label
+  for (int i=nLabels; i--;) {
+    if (mx[i] > maxL) {
+      maxL = mx[i];
       lab = lb[i];
     }
-
-  for (i = 0; i < noc; i++) {
-    Cluster* c = clusters[i];
-    // if (TMath::Abs(c->getLabel(1)) == lab ||
-    //    TMath::Abs(c->getLabel(2)) == lab ) max++;
-    if (TMath::Abs(c->getLabel(0) != lab))
-      if (TMath::Abs(c->getLabel(1)) == lab || TMath::Abs(c->getLabel(2)) == lab)
-        max++;
   }
-
-  if ((1. - Float_t(max) / noc) > wrong)
-    lab = -lab;
-  // t.SetFakeRatio((1.- Float_t(max)/noc));
+  
+  if ((1. - Float_t(maxL) / noc) > wrong) {
+    // change the track ID to negative
+    lab.set( -lab.getTrackID(), lab.getEventID(), lab.getSourceID() );
+  }
+  // t.SetFakeRatio((1.- Float_t(maxL)/noc));
   t.setLabel(lab);
 }
 
@@ -216,7 +224,8 @@ static Double_t f3(Double_t x1, Double_t y1, Double_t x2, Double_t y2, Double_t 
 }
 
 static CookedTrack cookSeed
-(const Float_t r1[4], const Float_t r2[4], const Float_t tr3[4], Double_t alpha, Double_t bz)
+(const Point3Df& r1, Point3Df& r2,  const Point3Df& tr3, float rad2, float rad3, float_t alpha, float_t bz)
+//const  Float_t r1[4], const Float_t r2[4], const Float_t tr3[4], Double_t alpha, Double_t bz)
 {
   //--------------------------------------------------------------------
   // This is the main cooking function.
@@ -224,9 +233,9 @@ static CookedTrack cookSeed
   //--------------------------------------------------------------------
   
   Double_t ca = TMath::Cos(alpha), sa = TMath::Sin(alpha);
-  Double_t x1 = r1[0] * ca + r1[1] * sa, y1 = -r1[0] * sa + r1[1] * ca, z1 = r1[2];
-  Double_t x2 = r2[0] * ca + r2[1] * sa, y2 = -r2[0] * sa + r2[1] * ca, z2 = r2[2];
-  Double_t x3 = tr3[0], y3 = tr3[1], z3 = tr3[2];
+  Double_t x1 = r1.X() * ca + r1.Y() * sa, y1 = -r1.X() * sa + r1.Y() * ca, z1 = r1.Z();
+  Double_t x2 = r2.X() * ca + r2.Y() * sa, y2 = -r2.X() * sa + r2.Y() * ca, z2 = r2.Z();
+  Double_t x3 = tr3.X(), y3 = tr3.Y(), z3 = tr3.Z();
 
   std::array<float,5> par;
   par[0] = y3;
@@ -252,7 +261,7 @@ static CookedTrack cookSeed
   cov[14]=0.1*0.1*10;
   */
   const Double_t dlt = 0.0005;
-  Double_t fy = 1. / (r2[3] - tr3[3]);
+  Double_t fy = 1. / (rad2 - rad3);
   Double_t tz = fy;
   Double_t cy = (f1(x1, y1, x2, y2 + dlt, x3, y3) - crv) / dlt / bz / kB2C;
   cy *= 20; // FIXME: MS contribution to the cov[14]
@@ -300,15 +309,14 @@ void CookedTracker::makeSeeds(std::vector<CookedTrack> &seeds, Int_t first, Int_
     Cluster* c1 = layer1.getCluster(n1);
     //
     // Int_t lab=c1->getLabel(0);
-    //
+    //    
     Double_t z1 = c1->getZ();
-    Float_t xyz1[3];
-    c1->getGlobalXYZ(xyz1);
-    Double_t r1 = TMath::Sqrt(xyz1[0] * xyz1[0] + xyz1[1] * xyz1[1]);
-    Double_t phi1 = layer1.getClusterPhi(n1);
-
+    auto xyz1 = c1->getXYZGloRot(*mGeom);
+    Double_t r1 = xyz1.rho(), phi1 = layer1.getClusterPhi(n1);
+    
     Double_t zr2 = zv + layer2.getR() / r1 * (z1 - zv);
     Int_t start2 = layer2.findClusterIndex(zr2 - kzWin);
+
     for (Int_t n2 = start2; n2 < nClusters2; n2++) {
       Cluster* c2 = layer2.getCluster(n2);
       //
@@ -322,13 +330,13 @@ void CookedTracker::makeSeeds(std::vector<CookedTrack> &seeds, Int_t first, Int_
       if (TMath::Abs(phi2 - phi1) > kpWin)
         continue; // check in Phi
 
-      Float_t xyz2[4];
-      c2->getGlobalXYZ(xyz2);
-      Double_t r2 = TMath::Sqrt(xyz2[0] * xyz2[0] + xyz2[1] * xyz2[1]);
-      Double_t crv = f1(xyz1[0], xyz1[1], xyz2[0], xyz2[1], getX(), getY());
+      auto xyz2 = c2->getXYZGloRot(*mGeom);
+      Double_t r2 = xyz2.rho();
+      Double_t crv = f1(xyz1.X(), xyz1.Y(), xyz2.X(), xyz2.Y(), getX(), getY());
 
       Double_t zr3 = z1 + (layer3.getR() - r1) / (r2 - r1) * (z2 - z1);
       Double_t dz = kzWin / 2;
+      
       Int_t start3 = layer3.findClusterIndex(zr3 - dz);
       for (Int_t n3 = start3; n3 < nClusters3; n3++) {
         Cluster* c3 = layer3.getCluster(n3);
@@ -336,40 +344,35 @@ void CookedTracker::makeSeeds(std::vector<CookedTrack> &seeds, Int_t first, Int_
         // if (c3->getLabel(0)!=lab) continue;
         //
         Double_t z3 = c3->getZ();
-        if (z3 > (zr3 + dz))
+	if (z3 > (zr3 + dz))
           break; // check in Z
 
-        Double_t r3 = layer3.getXRef(n3);
+        Double_t r3 = c3->getX();
         Double_t phir3 = phi1 + 0.5 * crv * (r3 - r1);
         Double_t phi3 = layer3.getClusterPhi(n3);
         if (TMath::Abs(phir3 - phi3) > kpWin / 100)
           continue; // check in Phi
 
-        Float_t txyz2[4];
-        c2->getTrackingXYZ(txyz2);
-        txyz2[0]= layer2.getXRef(n2);
-        txyz2[3]= layer2.getR();
+	Point3Df txyz2 = c2->getXYZ(); // tracking coordinates
+	//	txyz2.SetX(layer2.getXRef(n2));  // The clusters are already in the tracking frame
 
-        Float_t xyz3[4];
-        c3->getGlobalXYZ(xyz3);
-	xyz3[3] = layer3.getR();
+	auto xyz3 = c3->getXYZGloRot(*mGeom);
 
-	CookedTrack seed = cookSeed(xyz1, xyz3, txyz2, layer2.getAlphaRef(n2), getBz());
+	CookedTrack seed = cookSeed(xyz1, xyz3, txyz2, layer2.getR(), layer3.getR(), layer2.getAlphaRef(n2), getBz());
 
 	Double_t ip[2];
         seed.getImpactParams(getX(), getY(), getZ(), getBz(), ip);
         if (TMath::Abs(ip[0]) > kmaxDCAxy) continue;
         if (TMath::Abs(ip[1]) > kmaxDCAz ) continue;
 	{
-        Double_t xx0 = 0.008; // Rough layer thickness
-        Double_t radl = 9.36; // Radiation length of Si [cm]
-        Double_t rho = 2.33;  // Density of Si [g/cm^3]
-        if (!seed.correctForMeanMaterial(xx0, xx0 * radl * rho, kTRUE)) continue;
+	  Double_t xx0 = 0.008; // Rough layer thickness
+	  Double_t radl = 9.36; // Radiation length of Si [cm]
+	  Double_t rho = 2.33;  // Density of Si [g/cm^3]
+	  if (!seed.correctForMeanMaterial(xx0, xx0 * radl * rho, kTRUE)) continue;
 	}
         seed.setClusterIndex(kSeedingLayer1, n1);
         seed.setClusterIndex(kSeedingLayer3, n3);
         seed.setClusterIndex(kSeedingLayer2, n2);
-
         seeds.push_back(seed);
       }
     }
@@ -417,7 +420,7 @@ void CookedTracker::trackSeeds(std::vector<CookedTrack> &seeds)
     Double_t crv = track.getCurvature(getBz());
     Double_t tgl = track.getTgl();
     Double_t r1 = sLayers[kSeedingLayer2].getR();
-
+    
     for (Int_t l = kSeedingLayer2 - 1; l >= 0; l--) {
       Double_t r2 = sLayers[l].getR();
       phi += 0.5 * crv * (r2 - r1);
@@ -545,8 +548,8 @@ void CookedTracker::process(const TClonesArray& clusters, TClonesArray& tracks)
     nSeeds += seedArray[t].size();
     for (auto &track : seedArray[t]) {
       if (track.getNumberOfClusters() < kminNumberOfClusters) continue;
-      Int_t label = track.getLabel();
-      if (label >= 0) ngood++;
+      Label label = track.getLabel();
+      if (label.getTrackID() >= 0) ngood++;
       new (tracks[tracks.GetEntriesFast()]) CookedTrack(track);
     }
   }
@@ -556,7 +559,8 @@ void CookedTracker::process(const TClonesArray& clusters, TClonesArray& tracks)
   LOG(INFO)<<"Processing time: "<<diff.count()<<" s"<<FairLogger::endl;
 
   if (nSeeds)
-    LOG(INFO)<<"CookedTracker::process(), good_tracks/seeds: "<<Float_t(ngood)/nSeeds<<'\n'<<FairLogger::endl;
+    LOG(INFO)<<"CookedTracker::process(), good_tracks:/seeds: "<< ngood << '/' << nSeeds
+	     << "-> " <<Float_t(ngood)/nSeeds<<'\n'<<FairLogger::endl;
 
   unloadClusters();
   
@@ -705,18 +709,18 @@ void CookedTracker::loadClusters(const TClonesArray& clusters)
   //--------------------------------------------------------------------
   Int_t numOfClusters = clusters.GetEntriesFast();
   if (numOfClusters == 0) {
-    LOG(FATAL) << "No clusters to load !" << FairLogger::endl;
+    LOG(WARNING) << "No clusters to load !" << FairLogger::endl;
     return;
   }
 
   for (Int_t i = 0; i < numOfClusters; i++) {
     Cluster* c = (Cluster*)clusters.UncheckedAt(i);
     c->SetUniqueID(i);
-    c->goToFrameTrk();
+    //    c->goToFrameTrk(); // RS now clusters are always in tracking frame
 
-    Int_t layer = c->getLayer();
-    if ((layer == kSeedingLayer1) || (layer == kSeedingLayer2) || (layer == kSeedingLayer3))
-      c->goToFrameGlo();
+    Int_t layer = mGeom->getLayer(c->getSensorID());
+    //    if ((layer == kSeedingLayer1) || (layer == kSeedingLayer2) || (layer == kSeedingLayer3))
+    //      c->goToFrameGlo();
 
     if (!sLayers[layer].insertCluster(c))
       continue;
@@ -773,18 +777,13 @@ void CookedTracker::Layer::init()
   Int_t m=mClusters.size();
   for (Int_t i = 0; i < m; i++) {
     Cluster* c = mClusters[i];
-    Float_t xRef, aRef; 
-    c->getXAlphaRefPlane(xRef, aRef);
-    mXRef.push_back(xRef);
-    mAlphaRef.push_back(aRef);
-    Float_t xyz[3];
-    c->getGlobalXYZ(xyz);
-    r += TMath::Sqrt(xyz[0] * xyz[0] + xyz[1] * xyz[1]);
-    Float_t phi = TMath::ATan2(xyz[1], xyz[0]);
-    if (phi < 0.)
-      phi += pi2;
-    else if (phi >= pi2)
-      phi -= pi2;
+    //Float_t xRef, aRef; 
+    //mGeom->getSensorXAlphaRefPlane(c->getSensorID(),xRef, aRef);
+    mAlphaRef.push_back( mGeom->getSensorRefAlpha(c->getSensorID()) );
+    auto xyz = c->getXYZGloRot(*mGeom);
+    r += xyz.rho();    
+    Float_t phi = xyz.Phi();
+    BringTo02Pi(phi); 
     mPhi.push_back(phi);
     Int_t s=phi*kNSectors/pi2;
     mSectors[s].push_back(i);
@@ -799,7 +798,6 @@ void CookedTracker::Layer::unloadClusters()
   // Unload clusters from this layer
   //--------------------------------------------------------------------
   mClusters.clear();
-  mXRef.clear();
   mAlphaRef.clear();
   mPhi.clear();
   for (Int_t s=0; s<kNSectors; s++) mSectors[s].clear();
@@ -873,18 +871,18 @@ Bool_t CookedTracker::attachCluster(Int_t& volID, Int_t nl, Int_t ci, CookedTrac
   Layer& layer = sLayers[nl];
   Cluster* c = layer.getCluster(ci);
 
-  Int_t vid = c->getVolumeId();
+  Int_t vid = c->getSensorID();
 
   if (vid != volID) {
     volID = vid;
     t = o;
-    Double_t x = layer.getXRef(ci);
     Double_t alpha = layer.getAlphaRef(ci);
-    if (!t.propagate(alpha, x, getBz()))
+    if (!t.propagate(alpha, c->getX() , getBz()))
       return kFALSE;
   }
 
   Double_t chi2 = t.getPredictedChi2(c);
+
   if (chi2 > kmaxChi2PerCluster)
     return kFALSE;
 
@@ -895,6 +893,12 @@ Bool_t CookedTracker::attachCluster(Int_t& volID, Int_t nl, Int_t ci, CookedTrac
   Double_t x0 = 9.36;                      // Radiation length of Si [cm]
   Double_t rho = 2.33;                     // Density of Si [g/cm^3]
   t.correctForMeanMaterial(xx0, xx0 * x0 * rho, kTRUE);
-
   return kTRUE;
+}
+
+void CookedTracker::setGeometry(o2::ITS::GeometryTGeo* geom)
+{
+  /// attach geometry interface
+  mGeom = geom;
+  for (Int_t i = 0; i < kNLayers; i++) sLayers[i].setGeometry(geom);
 }

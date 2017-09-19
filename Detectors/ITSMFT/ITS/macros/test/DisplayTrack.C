@@ -17,15 +17,19 @@
   #include <TMath.h>
   #include <TString.h>
 
-  #include "ITSMFTSimulation/Point.h"
-  #include "ITSReconstruction/Cluster.h"
+  #include "ITSMFTSimulation/Hit.h"
+  #include "DetectorsBase/Utils.h"
+  #include "MathUtils/Cartesian3D.h"
+  #include "ITSBase/GeometryTGeo.h"
+  #include "ITSMFTReconstruction/Cluster.h"
   #include "ITSReconstruction/CookedTrack.h"
 #endif
 
-extern TGeoManager *gGeoManager;
+using namespace o2::Base;
+using o2::ITSMFT::Cluster;
 
 void DisplayTrack(Int_t nEvents = 10, TString mcEngine = "TGeant3", Int_t event=0, Int_t track=0) {
-  using o2::ITSMFT::Point;
+  using o2::ITSMFT::Hit;
   using namespace o2::ITS;
 
   char filename[100];
@@ -76,21 +80,21 @@ void DisplayTrack(Int_t nEvents = 10, TString mcEngine = "TGeant3", Int_t event=
   // Hits
   sprintf(filename, "AliceO2_%s.mc_%i_event.root", mcEngine.Data(), nEvents);
   f = TFile::Open(filename);
-  TTree *tree = (TTree *)gDirectory->Get("cbmsim");
+  TTree *tree = (TTree *)gDirectory->Get("o2sim");
 
   string s{"hits"};
   s+=std::to_string(track);
   TEvePointSet* points = new TEvePointSet(s.data());
   points->SetMarkerColor(kBlue);
 
-  TClonesArray pntArr("o2::ITSMFT::Point"), *ppntArr(&pntArr);
-  tree->SetBranchAddress("ITSPoint",&ppntArr);
+  TClonesArray pntArr("o2::ITSMFT::Hit"), *ppntArr(&pntArr);
+  tree->SetBranchAddress("ITSHit",&ppntArr);
 
   tree->GetEvent(event);
 
   Int_t nc=pntArr.GetEntriesFast(), n=0;
   while(nc--) {
-      Point *c=static_cast<Point *>(pntArr.UncheckedAt(nc));
+      Hit *c=static_cast<Hit *>(pntArr.UncheckedAt(nc));
       if (c->GetTrackID() == track) {
          points->SetNextPoint(c->GetX(),c->GetY(),c->GetZ());
          n++;
@@ -105,7 +109,7 @@ void DisplayTrack(Int_t nEvents = 10, TString mcEngine = "TGeant3", Int_t event=
   // Clusters
   sprintf(filename, "AliceO2_%s.clus_%i_event.root", mcEngine.Data(), nEvents);
   f = TFile::Open(filename);
-  tree = (TTree *)gDirectory->Get("cbmsim");
+  tree = (TTree *)gDirectory->Get("o2sim");
 
   s="clusters";
   s+=std::to_string(track);
@@ -117,15 +121,15 @@ void DisplayTrack(Int_t nEvents = 10, TString mcEngine = "TGeant3", Int_t event=
 
   tree->GetEvent(event);
 
-  GeometryTGeo *gman = new GeometryTGeo(kTRUE);
-  Cluster::setGeom(gman);  
+  o2::ITS::GeometryTGeo *gman = GeometryTGeo::Instance();
+  gman->fillMatrixCache( Utils::bit2Mask(TransformType::T2GRot) ); // request cached transforms
 
   nc=clusArr.GetEntriesFast(); n=0;
   while(nc--) {
       Cluster *c=static_cast<Cluster *>(clusArr.UncheckedAt(nc));
-      c->goToFrameGlo();
+      auto gloC = c->getXYZGloRot(*gman); // convert from tracking to global frame
       if (c->getLabel(0) == track) {
-         points->SetNextPoint(c->getX(),c->getY(),c->getZ());
+         points->SetNextPoint(gloC.X(),gloC.Y(),gloC.Z());
          n++;
       }      
   } 
@@ -133,13 +137,11 @@ void DisplayTrack(Int_t nEvents = 10, TString mcEngine = "TGeant3", Int_t event=
 
   gEve->AddElement(points,0);
   f->Close();
-
-
   
   // Track
   sprintf(filename, "AliceO2_%s.trac_%i_event.root", mcEngine.Data(), nEvents);
   f = TFile::Open(filename);
-  tree = (TTree *)gDirectory->Get("cbmsim");
+  tree = (TTree *)gDirectory->Get("o2sim");
 
   s="track";
   s+=std::to_string(track);
@@ -159,8 +161,8 @@ void DisplayTrack(Int_t nEvents = 10, TString mcEngine = "TGeant3", Int_t event=
       while (n<nc) {
 	Int_t idx=t->getClusterIndex(n);
         Cluster *c=static_cast<Cluster *>(clusArr.UncheckedAt(idx));
-        c->goToFrameGlo();
-        points->SetNextPoint(c->getX(),c->getY(),c->getZ());
+	auto gloC = c->getXYZGloRot(*gman); // convert from tracking to global frame
+        points->SetNextPoint(gloC.X(),gloC.Y(),gloC.Z());
         n++;
       }      
       break;

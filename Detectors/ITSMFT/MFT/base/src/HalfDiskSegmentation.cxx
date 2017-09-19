@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -54,7 +54,7 @@ HalfDiskSegmentation::HalfDiskSegmentation(UInt_t uniqueID):
   
   Geometry * mftGeom = Geometry::instance();
   
-  SetName(Form("%s_%d_%d",GeometryTGeo::getHalfDiskName(),mftGeom->getHalfMFTID(GetUniqueID()), mftGeom->getHalfDiskID(GetUniqueID()) ));
+  SetName(Form("%s_%d_%d",GeometryTGeo::getDiskName(),mftGeom->getHalfID(GetUniqueID()), mftGeom->getDiskID(GetUniqueID()) ));
   
   mLadders  = new TClonesArray("o2::MFT::LadderSegmentation");
   mLadders -> SetOwner(kTRUE);
@@ -156,13 +156,8 @@ void HalfDiskSegmentation::createLadders(TXMLEngine* xml, XMLNodePointer_t node)
       //ladderID -= getNLadders()/2;
     }
     
-    //if ((plane==0 && pos[2]<0.) || (plane==1 && pos[2]>0.))
-    //AliFatal(Form(" Wrong Z Position or ladder number ???  :  z= %f ladder id = %d",pos[2],ladderID));
+    UInt_t ladderUniqueID = mftGeom->getObjectID(Geometry::LadderType,mftGeom->getHalfID(GetUniqueID()),mftGeom->getDiskID(GetUniqueID()),plane,ladderID);
 
-    UInt_t ladderUniqueID = mftGeom->getObjectID(Geometry::LadderType,mftGeom->getHalfMFTID(GetUniqueID()),mftGeom->getHalfDiskID(GetUniqueID()),ladderID);
-
-    //UInt_t ladderUniqueID = (Geometry::LadderType<<13) +  (((GetUniqueID()>>9) & 0xF)<<9) + (plane<<8) + (ladderID<<3);
-    
     auto * ladder = new LadderSegmentation(ladderUniqueID);
     ladder->setNSensors(nsensor);
     ladder->setPosition(pos);

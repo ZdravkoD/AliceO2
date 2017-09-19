@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -25,9 +25,9 @@
 using namespace o2::TPC;
 
 PadResponse::PadResponse()
-  : mIROC()
-  , mOROC12()
-  , mOROC3()
+  : mIROC(),
+    mOROC12(),
+    mOROC3()
 {
   mIROC   = std::unique_ptr<TGraph2D> (new TGraph2D());
   mOROC12 = std::unique_ptr<TGraph2D> (new TGraph2D());
@@ -68,14 +68,14 @@ float PadResponse::getPadResponse(GlobalPosition3D posEle, DigitPos digiPadPos) 
   const PadCentre padCentre = mapper.padCentre(mapper.globalPadNumber(digiPadPos.getPadPos()));
   const CRU cru(digiPadPos.getCRU());
   const Sector sector(digiPadPos.getPadSecPos().getSector());
-  const LocalPosition3D padCentreLocal(padCentre.getX(), padCentre.getY(), posEle.getZ());
+  const LocalPosition3D padCentreLocal(padCentre.X(), padCentre.Y(), posEle.Z());
   const GlobalPosition3D padCentrePos = mapper.LocalToGlobal(padCentreLocal, sector);
 
-  ///std::cout << padCentrePos.getX() << " " << posEle.getX() << " " << padCentrePos.getY() << " " << posEle.getY() << "\n";
+  ///std::cout << padCentrePos.X() << " " << posEle.X() << " " << padCentrePos.Y() << " " << posEle.Y() << "\n";
 
   const int gemStack = int(cru.gemStack());
-  const float offsetX = std::fabs(posEle.getX() - padCentre.getX())*10.f; /// GlobalPosition3D and DigitPos in cm, PRF in mm
-  const float offsetY = std::fabs(posEle.getY() - padCentre.getY())*10.f; /// GlobalPosition3D and DigitPos in cm, PRF in mm
+  const float offsetX = std::fabs(posEle.X() - padCentre.X())*10.f; /// GlobalPosition3D and DigitPos in cm, PRF in mm
+  const float offsetY = std::fabs(posEle.Y() - padCentre.Y())*10.f; /// GlobalPosition3D and DigitPos in cm, PRF in mm
   float normalizedPadResponse = 0;
   if(gemStack == 0) {
     normalizedPadResponse = mIROC->Interpolate(offsetX, offsetY);

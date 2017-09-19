@@ -15,7 +15,6 @@
   #include "FairParRootFileIo.h"
   #include "FairSystemInfo.h"
 
-  #include "TGeoGlobalMagField.h"
   #include "Field/MagneticField.h"
 
   #include "DetectorsPassive/Cave.h"
@@ -23,7 +22,7 @@
   #include "TPCSimulation/Detector.h"
 #endif
 
-//#define BOX_GENERATOR 1
+#define BOX_GENERATOR 1
 
 void run_sim_tpc(Int_t nEvents = 10, TString mcEngine = "TGeant3")
 {

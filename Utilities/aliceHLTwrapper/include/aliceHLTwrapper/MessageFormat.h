@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -39,7 +39,7 @@ class AliHLTHOMERReader;
 class AliHLTHOMERWriter;
 
 namespace o2 {
-namespace AliceHLT {
+namespace alice_hlt {
 /// @struct BlockDescriptor
 /// Helper struct to provide constructors to AliHLTComponentBlockData
 ///
@@ -203,7 +203,7 @@ private:
   /// list of message payload descriptors
   std::vector<BufferDesc_t>             mMessages;
   /// HOMER factory for creation and deletion of HOMER readers and writers
-  ALICE::HLT::HOMERFactory*        mpFactory;
+  o2::alice_hlt::HOMERFactory*        mpFactory;
   /// output mode: HOMER, multi-message, sequential
   int mOutputMode;
   /// list of event descriptors
@@ -215,6 +215,6 @@ private:
   HeartbeatTrailer mHeartbeatTrailer;
 };
 
-} // namespace AliceHLT
-} // namespace AliceO2
+} // namespace alice_hlt
+} // namespace o2
 #endif // MESSAGEFORMAT_H

@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -50,6 +50,12 @@ class SimpleEventDisplay : public CalibRawBase
                     const Int_t timeBin, const Float_t signal) final { return 0;}
 
     CalPad* getCalPadMax() {return &mPadMax;}
+
+    /// Set currently selected sector
+    void setSelectedSector(Int_t selectedSector) { mSelectedSector=selectedSector; }
+
+    /// Set last processed sector
+    void setLastSector(Int_t lastSector) { mLastSector=lastSector; }
 
     void setPedstals(CalPad* pedestals) { mPedestals = pedestals; }
   //   TH1D* MakePadSignals(Int_t roc, Int_t channel);

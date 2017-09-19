@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -13,7 +13,7 @@
 //  ALICEO2
 //
 //  Created by Markus Fasel on 23.07.15.
-//  Adapted from AliITSUChip by Massimo Masersa
+//  Adapted from AliITSUChip by Massimo Masera
 //
 
 #ifndef ALICEO2_ITSMFT_CHIP_
@@ -22,27 +22,30 @@
 #include <exception>
 #include <sstream>
 #include <vector>
+#include <map>
 #include <TObject.h>    // for TObject
-#include <TGeoMatrix.h>   
+#include <ITSMFTBase/Digit.h>
+#include "SimulationDataFormat/MCCompLabel.h"
+#include "MathUtils/Cartesian3D.h"
 
-
-namespace o2 { namespace ITSMFT { class Point; }}  // lines 22-22
+namespace o2 { namespace ITSMFT { class Hit; }}
 
 namespace o2 {
 
 namespace ITSMFT {
 
-class Point;
+class Hit;
+class DigiParams;
 
 /// @class Chip
 /// @brief Container for similated points connected to a given chip
 ///
 /// This class contains all points of an event connected to a given
 /// chip identified by the chip index.
-class Chip : public TObject
+class Chip
 {
   public:
-
+    using Label = o2::MCCompLabel;
     /// @class IndexException
     /// @brief Handling discrepancies between Chip index stored in the hit
     /// and Chip index stored in the chip
@@ -93,12 +96,15 @@ class Chip : public TObject
     };
 
     /// Default constructor
-    Chip();
+    Chip() = default;
+
+     /// Destructor
+    ~Chip() = default;
 
     /// Main constructor
     /// @param chipindex Index of the chip
     /// @param mat Transformation matrix
-    Chip(Int_t index, const TGeoHMatrix *mat);
+    Chip(const DigiParams* par, Int_t index, const o2::Base::Transform3D *mat);
 
     /// Copy constructor
     /// @param ref Reference for the copy
@@ -127,19 +133,16 @@ class Chip : public TObject
     /// @return True if this chip index is smaller than the other chip index
     Bool_t operator<(const Chip &other) const;
 
-    /// Destructor
-    ~Chip() override;
-
     /// Empties the point container
     /// @param option unused
-    void Clear(Option_t *opt = "") override;
+    void Clear();
 
     /// Change the chip index
     /// @param index New chip index
     void SetChipIndex(Int_t index)
     { mChipIndex = index; }
 
-    void Init(Int_t index, const TGeoHMatrix *mat)
+    void Init(Int_t index, const o2::Base::Transform3D *mat)
     { mChipIndex = index; mMat=mat; }
 
     /// Get the chip index
@@ -148,22 +151,25 @@ class Chip : public TObject
     { return mChipIndex; }
 
     /// Insert new ITSMFT point into the Chip
-    /// @param p Point to be added
-    void InsertPoint(const Point *p);
+    /// @param p Hit to be added
+    void InsertHit(const Hit *p);
 
     /// Get the number of point assigned to the chip
     /// @return Number of points assigned to the chip
-    Int_t GetNumberOfPoints() const
-    { return mPoints.size(); }
+    Int_t GetNumberOfHits() const
+    { return mHits.size(); }
 
-    /// Access Point assigned to chip at a given index
-    /// @param index Index of the point
-    /// @return Point at given index (nullptr if index is out of bounds)
-    const Point *GetPointAt(Int_t index) const;
-
-    void globalToLocalVector(Double_t glob[3], Double_t loc[3]) const {
-       mMat->MasterToLocalVect(glob, loc);
+    /// reset points container
+    void ClearHits() {
+      mHits.clear();
     }
+
+    o2::ITSMFT::Digit* findDigit(ULong64_t key);
+    
+    /// Access Hit assigned to chip at a given index
+    /// @param index Index of the point
+    /// @return Hit at given index (nullptr if index is out of bounds)
+    const Hit *GetHitAt(Int_t index) const;
     
     /// Get the line segment of a given point (from start to current position)
     /// in local coordinates.
@@ -178,6 +184,8 @@ class Chip : public TObject
     /// @param timestart Start time of the hit
     /// @param eloss Energy loss during the hit
     Bool_t LineSegmentLocal(Int_t hitindex, Double_t &xstart, Double_t &xpoint, Double_t &ystart, Double_t &ypoint,
+                            Double_t &zstart, Double_t &zpoint, Double_t &timestart, Double_t &eloss) const;
+    Bool_t LineSegmentLocal(const Hit* hit, Double_t &xstart, Double_t &xpoint, Double_t &ystart, Double_t &ypoint,
                             Double_t &zstart, Double_t &zpoint, Double_t &timestart, Double_t &eloss) const;
 
     /// Get the line segment of a given point (from start to current position)
@@ -195,6 +203,8 @@ class Chip : public TObject
     /// @param eloss Energy loss during the hit
     Bool_t LineSegmentGlobal(Int_t hitindex, Double_t &xstart, Double_t &xpoint, Double_t &ystart, Double_t &ypoint,
                              Double_t &zstart, Double_t &zpoint, Double_t &timestart, Double_t &eloss) const;
+    Bool_t LineSegmentGlobal(const Hit* hit, Double_t &xstart, Double_t &xpoint, Double_t &ystart, Double_t &ypoint,
+                             Double_t &zstart, Double_t &zpoint, Double_t &timestart, Double_t &eloss) const;
 
     /// Calculate median position of two hits
     /// @param p1 First point in the median calculation
@@ -202,7 +212,7 @@ class Chip : public TObject
     /// @param x Median x-position of the two hits in local coordinates
     /// @param y Median y-position of the two hits in local coordinates
     /// @param z Median z-position of the two hits in local coordinates
-    void MedianHitLocal(const Point *p1, const Point *p2, Double_t &x, Double_t &y, Double_t &z) const;
+    void MedianHitLocal(const Hit *p1, const Hit *p2, Double_t &x, Double_t &y, Double_t &z) const;
 
     /// Calculate median positoin of two hits
     /// @param p1 First point in the median calculation
@@ -210,20 +220,55 @@ class Chip : public TObject
     /// @param x Median xposition of the two hits in global coordinates
     /// @param y Median xposition of the two hits in global coordinates
     /// @param z Median xposition of the two hits in global coordinates
-    void MedianHitGlobal(const Point *p1, const Point *p2, Double_t &x, Double_t &y, Double_t &z) const;
+    void MedianHitGlobal(const Hit *p1, const Hit *p2, Double_t &x, Double_t &y, Double_t &z) const;
 
     /// Calculate path length between two its points
     /// @param p1 First point for the path length calculation
     /// @param p2 Second point for the path length calculation
     /// @return path length between points
-    Double_t PathLength(const Point *p1, const Point *p2) const;
+    Double_t PathLength(const Hit *p1, const Hit *p2) const;
+    
+    o2::ITSMFT::Digit* addDigit(UInt_t roframe, UShort_t row, UShort_t col, float charge, Label lbl, double timestamp);
 
+    void      fillOutputContainer(TClonesArray* digits, UInt_t maxFrame);
+ 
   protected:
+    
+    Int_t  mChipIndex = -1;     ///< Chip ID
+    const DigiParams* mParams = nullptr;   ///< externally set digitization parameters   
+    const o2::Base::Transform3D *mMat = nullptr;     ///< Transformation matrix
+    std::vector<const Hit *>mHits;     ///< Hits connnected to the given chip
+    std::map<ULong64_t, o2::ITSMFT::Digit> mDigits; ///< Map of fired pixels, possibly in multiple frames
 
-    Int_t mChipIndex;     ///< Chip ID
-    std::vector<const Point *>mPoints;        ///< Hits connnected to the given chip
-    const TGeoHMatrix *mMat;     ///< Transformation matrix
+    ClassDefNV(Chip,1);
 };
+
+inline o2::ITSMFT::Digit* Chip::findDigit(ULong64_t key) {
+  // finds the digit corresponding to global key
+  auto digitentry = mDigits.find(key);
+  return digitentry != mDigits.end() ? &(digitentry->second) : nullptr;
+}
+
+//_______________________________________________________________________
+inline Bool_t Chip::LineSegmentGlobal(Int_t hitindex, Double_t &xstart, Double_t &xpoint,
+				      Double_t &ystart, Double_t &ypoint,
+				      Double_t &zstart, Double_t &zpoint,
+				      Double_t &timestart, Double_t &eloss) const {
+  return (hitindex >= int(mHits.size())) ?
+    kFALSE : LineSegmentGlobal(mHits[hitindex],xstart,xpoint,ystart,ypoint,zstart,zpoint,timestart,eloss);
+}
+ 
+//_______________________________________________________________________
+inline Bool_t Chip::LineSegmentLocal(Int_t hitindex,
+				     Double_t &xstart, Double_t &xpoint,
+				     Double_t &ystart, Double_t &ypoint,
+				     Double_t &zstart, Double_t &zpoint,
+				     Double_t &timestart, Double_t &eloss) const {
+  return (hitindex >= int(mHits.size()))  ?
+    kFALSE : LineSegmentLocal(mHits[hitindex],xstart,xpoint,ystart,ypoint,zstart,zpoint,timestart,eloss);
+}
+
+ 
 }
 }
 

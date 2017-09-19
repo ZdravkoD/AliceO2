@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -11,10 +11,9 @@
 /// \file Detector.cxx
 /// \brief Implementation of the Detector class
 
-#include "ITSMFTSimulation/Point.h"
+#include "ITSMFTSimulation/Hit.h"
 #include "ITSBase/GeometryTGeo.h"
 #include "ITSSimulation/Detector.h"
-#include "ITSSimulation/GeometryHandler.h"
 #include "ITSSimulation/V3Layer.h"
 
 #include "ITSBase/MisalignmentParameter.h"  // for MisalignmentParameter
@@ -49,7 +48,7 @@ class TParticle;
 using std::cout;
 using std::endl;
 
-using o2::ITSMFT::Point;
+using o2::ITSMFT::Hit;
 using namespace o2::ITS;
 
 Detector::Detector()
@@ -89,9 +88,8 @@ Detector::Detector()
     mDetectorThickness(nullptr),
     mChipTypeID(nullptr),
     mBuildLevel(nullptr),
-    mPointCollection(new TClonesArray("o2::ITSMFT::Point")),
+    mHitCollection(new TClonesArray("o2::ITSMFT::Hit")),
     
-    mGeometryHandler(new GeometryHandler()),
     mMisalignmentParameter(nullptr),
     mGeometry(nullptr),
     mStaveModelInnerBarrel(kIBModel0),
@@ -138,8 +136,7 @@ Detector::Detector(const char *name, Bool_t active, const Int_t nlay)
     mChipTypeID(nullptr),
     mBuildLevel(nullptr),
 
-    mPointCollection(new TClonesArray("o2::ITSMFT::Point")),
-    mGeometryHandler(new GeometryHandler()),
+    mHitCollection(new TClonesArray("o2::ITSMFT::Hit")),
     mMisalignmentParameter(nullptr),
     
     mGeometry(nullptr),
@@ -226,8 +223,7 @@ Detector::Detector(const Detector &rhs)
     mBuildLevel(nullptr),
 
   /// Container for data points
-    mPointCollection(new TClonesArray("o2::ITSMFT::Point")),
-    mGeometryHandler(rhs.mGeometryHandler), // CHECK
+    mHitCollection(new TClonesArray("o2::ITSMFT::Hit")),
     mMisalignmentParameter(nullptr),
 
     mGeometry(rhs.mGeometry),
@@ -261,9 +257,9 @@ Detector::~Detector()
   delete[] mWrapperZSpan;
   delete[] mWrapperLayerId;
 
-  if (mPointCollection) {
-    mPointCollection->Delete();
-    delete mPointCollection;
+  if (mHitCollection) {
+    mHitCollection->Delete();
+    delete mHitCollection;
   }
 
   delete[] mLayerID;
@@ -315,9 +311,8 @@ Detector &Detector::operator=(const Detector &rhs)
   mBuildLevel = nullptr;
 
   /// Container for data points
-  mPointCollection = nullptr;
+  mHitCollection = nullptr;
 
-  mGeometryHandler = nullptr;
   mMisalignmentParameter = nullptr;
 
   mGeometry = nullptr;
@@ -342,7 +337,7 @@ void Detector::Initialize()
     mLayerID[i] = gMC ? TVirtualMC::GetMC()->VolId(mLayerName[i]) : 0;
   }
 
-  mGeometryTGeo = new GeometryTGeo(kTRUE);
+  mGeometryTGeo = GeometryTGeo::Instance();
 
   FairDetector::Initialize();
 
@@ -396,18 +391,18 @@ Bool_t Detector::ProcessHits(FairVolume *vol)
   // } // if Outer ITS mother Volume
   bool startHit=false, stopHit=false;
   unsigned char status = 0;
-  if (TVirtualMC::GetMC()->IsTrackEntering()) { status |= Point::kTrackEntering; }
-  if (TVirtualMC::GetMC()->IsTrackInside())   { status |= Point::kTrackInside; }
-  if (TVirtualMC::GetMC()->IsTrackExiting())  { status |= Point::kTrackExiting; }
-  if (TVirtualMC::GetMC()->IsTrackOut())      { status |= Point::kTrackOut; }
-  if (TVirtualMC::GetMC()->IsTrackStop())     { status |= Point::kTrackStopped; }
-  if (TVirtualMC::GetMC()->IsTrackAlive())    { status |= Point::kTrackAlive; }
+  if (TVirtualMC::GetMC()->IsTrackEntering()) { status |= Hit::kTrackEntering; }
+  if (TVirtualMC::GetMC()->IsTrackInside())   { status |= Hit::kTrackInside; }
+  if (TVirtualMC::GetMC()->IsTrackExiting())  { status |= Hit::kTrackExiting; }
+  if (TVirtualMC::GetMC()->IsTrackOut())      { status |= Hit::kTrackOut; }
+  if (TVirtualMC::GetMC()->IsTrackStop())     { status |= Hit::kTrackStopped; }
+  if (TVirtualMC::GetMC()->IsTrackAlive())    { status |= Hit::kTrackAlive; }
 
   // track is entering or created in the volume
-  if ( (status & Point::kTrackEntering) || (status & Point::kTrackInside && !mTrackData.mHitStarted) ) {
+  if ( (status & Hit::kTrackEntering) || (status & Hit::kTrackInside && !mTrackData.mHitStarted) ) {
     startHit = true;
   }
-  else if ( (status & (Point::kTrackExiting|Point::kTrackOut|Point::kTrackStopped)) ) {
+  else if ( (status & (Hit::kTrackExiting|Hit::kTrackOut|Hit::kTrackStopped)) ) {
     stopHit = true;
   }
 
@@ -433,7 +428,7 @@ Bool_t Detector::ProcessHits(FairVolume *vol)
     TVirtualMC::GetMC()->CurrentVolOffID(4, stave);
     int chipindex = mGeometryTGeo->getChipIndex(lay, stave, halfstave, module, chipinmodule);
     
-    Point *p = addHit(TVirtualMC::GetMC()->GetStack()->GetCurrentTrackNumber(), chipindex,
+    Hit *p = addHit(TVirtualMC::GetMC()->GetStack()->GetCurrentTrackNumber(), chipindex,
 		      mTrackData.mPositionStart.Vect(),positionStop.Vect(),mTrackData.mMomentumStart.Vect(),
 		      mTrackData.mMomentumStart.E(),positionStop.T(),mTrackData.mEnergyLoss,
 		      mTrackData.mTrkStatusStart,status);
@@ -450,13 +445,9 @@ Bool_t Detector::ProcessHits(FairVolume *vol)
 
 void Detector::createMaterials()
 {
-  // Int_t   ifield = ((AliceO2::Field::MagneticField*)TGeoGlobalMagField::Instance()->GetField())->Integral();
-  // Float_t fieldm = ((AliceO2::Field::MagneticField*)TGeoGlobalMagField::Instance()->GetField())->Max();
-
-  // until we solve the problem of reading the field from files with changed class names we
-  //  need to hard code some values here to be able to run the macros  M.Al-Turany (Nov.14)
   Int_t ifield = 2;
   Float_t fieldm = 10.0;
+  o2::Base::Detector::initFieldTrackingParams(ifield, fieldm);
   ////////////
 
   Float_t tmaxfd = 0.1;   // 1.0; // Degree
@@ -489,11 +480,30 @@ void Detector::createMaterials()
   Float_t wWater[2] = {0.111894, 0.888106};
   Float_t dWater = 1.0;
 
+  // PEEK CF30
+  Float_t aPEEK[3]={12.0107,1.00794,15.9994};
+  Float_t zPEEK[3]={6.,1.,8.};
+  Float_t wPEEK[3]={19.,12.,3};
+  Float_t dPEEK   = 1.32;
+
   // Kapton
   Float_t aKapton[4] = {1.00794, 12.0107, 14.010, 15.9994};
   Float_t zKapton[4] = {1., 6., 7., 8.};
   Float_t wKapton[4] = {0.026362, 0.69113, 0.07327, 0.209235};
   Float_t dKapton = 1.42;
+
+  // Tungsten Carbide
+  Float_t aWC[2]={183.84, 12.0107};
+  Float_t zWC[2]={74, 6};
+  Float_t wWC[2]={0.5, 0.5};
+  Float_t dWC   = 15.63;
+
+  // Inox 304
+  Float_t aInox304[4]={12.0107,51.9961,58.6928,55.845};
+  Float_t zInox304[4]={6.,24.,28,26}; // C, Cr, Ni, Fe
+  Float_t wInox304[4]={0.0003,0.18,0.10,0}; // [3] will be computed
+  Float_t dInox304   = 7.85;
+
 
   o2::Base::Detector::Mixture(1, "AIR$", aAir, zAir, dAir, 4, wAir);
   o2::Base::Detector::Medium(1, "AIR$", 1, 0, ifield, fieldm, tmaxfdAir, stemaxAir, deemaxAir,
@@ -535,6 +545,13 @@ void Detector::createMaterials()
   o2::Base::Detector::Material(8, "K13D2U2k$", 12.0107, 6, 1.643, 999, 999);
   o2::Base::Detector::Medium(8, "K13D2U2k$", 8, 0, ifield, fieldm, tmaxfdSi, stemaxSi,
                                   deemaxSi, epsilSi, stminSi);
+  o2::Base::Detector::Material(17, "K13D2U120$", 12.0107, 6, 1.583, 999, 999);
+  o2::Base::Detector::Medium(17, "K13D2U120$", 17, 0, ifield, fieldm, tmaxfdSi, stemaxSi,
+                                  deemaxSi, epsilSi, stminSi);
+  // Carbon prepreg woven
+  o2::Base::Detector::Material(18, "F6151B05M$", 12.0107, 6, 2.133, 999, 999);
+  o2::Base::Detector::Medium(18, "F6151B05M$", 18, 0, ifield, fieldm, tmaxfdSi, stemaxSi,
+			          deemaxSi,epsilSi,stminSi);
   // Impregnated thread
   o2::Base::Detector::Material(9, "M60J3K$", 12.0107, 6, 2.21, 999, 999);
   o2::Base::Detector::Medium(9, "M60J3K$", 9, 0, ifield, fieldm, tmaxfdSi, stemaxSi, deemaxSi,
@@ -555,6 +572,11 @@ void Detector::createMaterials()
   o2::Base::Detector::Material(13, "CarbonFleece$", 12.0107, 6, 0.4, 999, 999);
   o2::Base::Detector::Medium(13, "CarbonFleece$", 13, 0, ifield, fieldm, tmaxfdSi, stemaxSi,
                                   deemaxSi, epsilSi, stminSi);
+
+  // PEEK CF30
+  o2::Base::Detector::Mixture(19, "PEEKCF30$", aPEEK, zPEEK, dPEEK, -3, wPEEK);
+  o2::Base::Detector::Medium(19,"PEEKCF30$", 19, 0, ifield, fieldm, tmaxfdSi, stemaxSi,
+			          deemaxSi,epsilSi,stminSi);
 
   // Flex cable
   Float_t aFCm[5] = {12.0107, 1.00794, 14.0067, 15.9994, 26.981538};
@@ -579,28 +601,42 @@ void Detector::createMaterials()
                                     0.89000E+01, 0.99900E+03);
   o2::Base::Detector::Medium(16, "ALUMINUM$", 16, 0, ifield, fieldm, tmaxfd, stemax, deemax,
                                   epsil, stmin);
+
+  o2::Base::Detector::Mixture(20, "TUNGCARB$", aWC, zWC, dWC, 2, wWC);
+  o2::Base::Detector::Medium(20, "TUNGCARB$", 20, 0, ifield, fieldm, tmaxfd, stemax,
+			          deemaxSi,epsilSi,stminSi);
+
+  wInox304[3] = 1. - wInox304[0] - wInox304[1] - wInox304[2];
+  o2::Base::Detector::Mixture(21, "INOX304$", aInox304, zInox304, dInox304, 4, wInox304);
+  o2::Base::Detector::Medium(21, "INOX304$", 21, 0, ifield, fieldm, tmaxfd, stemax,
+			          deemaxSi,epsilSi,stminSi);
+
+  //Tungsten (for gamma converter rods)
+  o2::Base::Detector::Material(28, "TUNGSTEN$", 183.84, 74, 19.25, 999, 999);
+  o2::Base::Detector::Medium(28, "TUNGSTEN$", 28,0, ifield, fieldm, tmaxfdSi, stemaxSi,
+			          deemaxSi,epsilSi,stminSi);
 }
 
 void Detector::EndOfEvent()
 {
-  if (mPointCollection) { mPointCollection->Clear(); }
+  if (mHitCollection) { mHitCollection->Clear(); }
 }
 
 void Detector::Register()
 {
-  // This will create a branch in the output tree called Point, setting the last
+  // This will create a branch in the output tree called Hit, setting the last
   // parameter to kFALSE means that this collection will not be written to the file,
   // it will exist only during the simulation
 
   if (FairGenericRootManager::Instance()) {
-    FairGenericRootManager::Instance()->Register("ITSPoint", "ITS", mPointCollection, kTRUE);
+    FairGenericRootManager::Instance()->Register("ITSHit", "ITS", mHitCollection, kTRUE);
   }
 }
 
 TClonesArray *Detector::GetCollection(Int_t iColl) const
 {
   if (iColl == 0) {
-    return mPointCollection;
+    return mHitCollection;
   } else {
     return nullptr;
   }
@@ -608,7 +644,7 @@ TClonesArray *Detector::GetCollection(Int_t iColl) const
 
 void Detector::Reset()
 {
-  mPointCollection->Clear();
+  mHitCollection->Clear();
 }
 
 void Detector::setNumberOfWrapperVolumes(Int_t n)
@@ -968,7 +1004,7 @@ void Detector::createServiceBarrel(const Bool_t innerBarrel, TGeoVolume *dest,
   //
 
   Double_t rminIB = 4.7;
-  Double_t rminOB = 43.4;
+  Double_t rminOB = 43.9;
   Double_t zLenOB;
   Double_t cInt = 0.22; // dimensioni cilindro di supporto interno
   Double_t cExt = 1.00; // dimensioni cilindro di supporto esterno
@@ -1008,12 +1044,12 @@ void Detector::defineSensitiveVolumes()
   }
 }
 
-Point *Detector::addHit(int trackID, int detID, TVector3 startPos, TVector3 endPos, TVector3 startMom, double startE,
+Hit *Detector::addHit(int trackID, int detID, TVector3 startPos, TVector3 endPos, TVector3 startMom, double startE,
 			double endTime, double eLoss, unsigned char startStatus, unsigned char endStatus)
 {
-  TClonesArray &clref = *mPointCollection;
+  TClonesArray &clref = *mHitCollection;
   Int_t size = clref.GetEntriesFast();
-  return new(clref[size]) Point(trackID, detID, startPos, endPos, startMom, startE, endTime, eLoss, startStatus, endStatus);
+  return new(clref[size]) Hit(trackID, detID, startPos, endPos, startMom, startE, endTime, eLoss, startStatus, endStatus);
 }
 
 TParticle *Detector::GetParticle() const

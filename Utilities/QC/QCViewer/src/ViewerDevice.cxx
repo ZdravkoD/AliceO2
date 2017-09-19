@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -24,11 +24,10 @@ namespace o2
 {
 namespace qc
 {
-ViewerDevice::ViewerDevice(std::string viewerId, int numIoThreads, string drawingOptions)
+ViewerDevice::ViewerDevice(std::string viewerId, string drawingOptions)
 {
   this->SetTransport("zeromq");
-  this->SetProperty(ViewerDevice::Id, viewerId);
-  this->SetProperty(ViewerDevice::NumIoThreads, numIoThreads);
+  this->SetId(viewerId);
   mDrawingOptions = drawingOptions;
 }
 

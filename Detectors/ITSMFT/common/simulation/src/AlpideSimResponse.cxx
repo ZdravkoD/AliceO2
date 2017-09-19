@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -24,7 +24,7 @@ using namespace o2::ITSMFT;
 using namespace std;
 
 ClassImp(o2::ITSMFT::AlpideSimResponse)
-ClassImp(o2::ITSMFT::RespSimMat)
+ClassImp(o2::ITSMFT::AlpideRespSimMat)
 
 constexpr float micron2cm = 1e-4;
 
@@ -62,7 +62,8 @@ void AlpideSimResponse::initData()
   if (!mNBinX || mStepInvX < kTiny) {
     LOG(FATAL) << "Failed to read X binning from " << inpfname << FairLogger::endl;
   }
-  mStepInvX = (mNBinX - 1) / mStepInvX; // inverse of the X bin width
+  mMaxBinX = mNBinX-1;
+  mStepInvX = mMaxBinX / mStepInvX; // inverse of the X bin width
   inpGrid.close();
 
   // read Y grid
@@ -77,7 +78,8 @@ void AlpideSimResponse::initData()
   if (!mNBinY || mStepInvY < kTiny) {
     LOG(FATAL) << "Failed to read Y binning from " << inpfname << FairLogger::endl;
   }
-  mStepInvY = (mNBinY - 1) / mStepInvY; // inverse of the Y bin width
+  mMaxBinY = mNBinY - 1;
+  mStepInvY = mMaxBinY / mStepInvY; // inverse of the Y bin width
   inpGrid.close();
 
   // load response data
@@ -88,7 +90,7 @@ void AlpideSimResponse::initData()
   size_t dataSize = 0;
   mZMax = -2.e9;
   mZMin = 2.e9;
-  const int npix = RespSimMat::getNPix();
+  const int npix = AlpideRespSimMat::getNPix();
 
   for (int ix = 0; ix < mNBinX; ix++) {
     for (int iy = 0; iy < mNBinY; iy++) {
@@ -109,9 +111,9 @@ void AlpideSimResponse::initData()
 
       // load data
       for (int iz = 0; iz < nz; iz++) {
-        RespSimMat mat;
+        AlpideRespSimMat mat;
 
-        std::array<float, RespSimMat::MatSize>* arr = mat.getArray();
+        std::array<float, AlpideRespSimMat::MatSize>* arr = mat.getArray();
         for (int ip = 0; ip < npix * npix; ip++) {
           inpGrid >> val;
           (*arr)[ip] = val;
@@ -133,8 +135,8 @@ void AlpideSimResponse::initData()
         if (mZMin > gz)   mZMin = gz;
 
         // normalize
-        float norm = 1. / nele;
-        for (int ip = 0; ip < npix * npix; ip++) (*arr)[ip] *= norm;
+        float norm = 1.f/nele;
+        for (int ip = npix * npix; ip--;) (*arr)[ip] *= norm;
         mData.push_back(mat); // store in the final container
       }                       // loop over z
 
@@ -159,7 +161,6 @@ void AlpideSimResponse::initData()
   mStepInvZ = (mNBinZ - 1) / (mZMax - mZMin);
   mZMin -= 0.5 / mStepInvZ;
   mZMax += 0.5 / mStepInvZ;
-
   print();
 }
 
@@ -191,8 +192,43 @@ string AlpideSimResponse::composeDataName(int xbin, int ybin)
   return mDataPath + string(tmp.get(), tmp.get() + size - 1);
 }
 
-//-----------------------------------------------------
-const RespSimMat* AlpideSimResponse::getResponse(float x, float y, float z) const
+//____________________________________________________________
+bool AlpideSimResponse::getResponse(float x, float y, float z, AlpideRespSimMat& dest) const
+{
+  /*
+   * get linearized NPix*NPix matrix for response at point x,y,z
+   */
+  if (!mNBinZ) {
+    LOG(FATAL) << "response object is not initialized" << FairLogger::endl;
+  }
+  bool flipX = false, flipY = false;
+  if (z < mZMin || z > mZMax) return false;
+  if (x < 0) {
+    x = -x;
+    flipX = true;
+  }
+  if (x > mXMax) return false;
+  if (y < 0) {
+    y = -y;
+    flipY = true;
+  }
+  if (y > mYMax) return false;
+
+  size_t bin = getZBin(z) + mNBinZ * (getYBin(y) + mNBinY * getXBin(x));
+  if (bin >= mData.size()) {
+    // this should not happen
+    LOG(FATAL) << "requested bin " << bin << "(xyz: " << getXBin(x) << ":" << getYBin(y)
+	       << ":" << getZBin(z) << ")" <<">= maxBin " << mData.size()
+	       << " for X=" << x << " Y=" << y << " Z=" << z << FairLogger::endl;
+  }
+  // printf("bin %d %d %d\n",getXBin(x),getYBin(y),getZBin(z));
+  //  return &mData[bin];
+  dest.adopt( mData[bin], flipX, flipY );
+  return true;
+}
+
+//____________________________________________________________
+const AlpideRespSimMat* AlpideSimResponse::getResponse(float x, float y, float z, bool& flipX, bool& flipY) const
 {
   /*
    * get linearized NPix*NPix matrix for response at point x,y,z
@@ -201,22 +237,36 @@ const RespSimMat* AlpideSimResponse::getResponse(float x, float y, float z) cons
     LOG(FATAL) << "response object is not initialized" << FairLogger::endl;
   }
   if (z < mZMin || z > mZMax) return nullptr;
-  if (x < 0) x = -x;
+  if (x < 0) {
+    x = -x;
+    flipX = true;
+  }
+  else {
+    flipX = false;
+  }
   if (x > mXMax) return nullptr;
-  if (y < 0) y = -y;
+  if (y < 0) {
+    y = -y;
+    flipY = true;
+  }
+  else {
+    flipY = false;
+  }
   if (y > mYMax) return nullptr;
 
   size_t bin = getZBin(z) + mNBinZ * (getYBin(y) + mNBinY * getXBin(x));
   if (bin >= mData.size()) {
     // this should not happen
-    LOG(FATAL) << "requested bin " << bin << ">= maxBin " << mData.size() << "for X="
-	       << x << " Y=" << y << " Z=" << z << FairLogger::endl;
+    LOG(FATAL) << "requested bin " << bin << "(xyz: " << getXBin(x) << ":" << getYBin(y)
+	       << ":" << getZBin(z) << ")" <<">= maxBin " << mData.size()
+	       << " for X=" << x << " Y=" << y << " Z=" << z << FairLogger::endl;
   }
   return &mData[bin];
+
 }
 
 //__________________________________________________
-void RespSimMat::print() const
+void AlpideRespSimMat::print() const
 {
   /*
    * print the response matrix

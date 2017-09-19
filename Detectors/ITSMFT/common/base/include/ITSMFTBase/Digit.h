@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -19,6 +19,7 @@
 
 #endif
 
+#include "SimulationDataFormat/MCCompLabel.h"
 #include "FairTimeStamp.h" // for FairTimeStamp
 #include "Rtypes.h"        // for Double_t, ULong_t, etc
 
@@ -32,6 +33,7 @@ class access;
 
 namespace o2
 {
+
 namespace ITSMFT
 {
 /// \class Digit
@@ -39,16 +41,21 @@ namespace ITSMFT
 ///
 class Digit : public FairTimeStamp
 {
+  using Label = o2::MCCompLabel;
+
  public:
-  /// Default constructor
-  Digit();
+
+  static constexpr int maxLabels=3;
+  
+  /// Default constructor  
+  Digit() = default;
 
   /// Constructor, initializing values for position, charge and time
   /// @param chipindex Global index of the pixel chip
   /// @param pixelindex Index of the pixel within the chip
   /// @param charge Accumulated charge of digit
   /// @param timestamp Time at which the digit was created
-  Digit(UShort_t chipindex, UShort_t row, UShort_t col, Double_t charge, Double_t timestamp);
+  Digit(UShort_t chipindex, UInt_t frame, UShort_t row, UShort_t col, Float_t charge, Double_t timestamp);
 
   /// Destructor
   ~Digit() override;
@@ -77,11 +84,12 @@ class Digit : public FairTimeStamp
   UShort_t getRow() const { return mRow; }
   /// Get the accumulated charged of the digit
   /// @return charge of the digit
-  Double_t getCharge() const { return mCharge; }
+  Float_t getCharge() const { return mCharge; }
   /// Get the labels connected to this digit
-  Int_t getLabel(Int_t idx) const { return mLabels[idx]; }
+  Label getLabel(Int_t idx) const { return mLabels[idx]; }
   /// Add Label to the list of Monte-Carlo labels
-  void setLabel(Int_t idx, Int_t label) { mLabels[idx] = label; }
+  void setLabel(Int_t idx, Label label) { mLabels[idx] = label; }
+  void setLabel(Int_t idx, int tr, int ev, int src=0) { mLabels[idx].set(tr,ev,src); }
   /// Set the index of the chip
   /// @param index The chip index
   void setChipIndex(UShort_t index) { mChipIndex = index; }
@@ -95,16 +103,53 @@ class Digit : public FairTimeStamp
 
   /// Set the charge of the digit
   /// @param charge The charge of the the digit
-  void setCharge(Double_t charge) { mCharge = charge; }
+  void setCharge(Float_t charge) { mCharge = charge; }
+
+  /// Add charge to the digit, registering the label if provided
+  void addCharge(Float_t charge, Label lbl) {
+    mCharge += charge;
+    if ( lbl.isEmpty() ) return;
+    for (int i=0;i<maxLabels;i++) {
+      if ( mLabels[i] == lbl ) break; // label was already added
+      if ( mLabels[i].isEmpty() ) {
+	mLabels[i] = lbl;
+      }
+    }
+  }
+
   /// Check whether digit is equal to other digit.
   /// Comparison is done based on the chip index and pixel index
   /// @param other The digit to compare with
   /// @return True if digits are equal, false otherwise
+
+  /// Get the RO frame ID, stripping overflow part
+  UInt_t getROFrame()         const {return mROFrame>>ROFrameOverFlowBits;}
+
+  /// Get the number of extra RO frames the signal will propagate
+  Int_t  getNOverflowFrames() const {return mROFrame & ROFrameOverFlowMask;}
+
+  /// Set RO frame ID (no overflow recorded)
+  void  setROFrame(UInt_t v)        {mROFrame = v<<ROFrameOverFlowBits;}
+
+  /// Set number of overflow RO frames
+  void  setNOverflowFrames(Int_t n)  {mROFrame &= ROFrameMask; mROFrame |= n&ROFrameOverFlowMask;}
+
+  /// Get global ordering key made of readout frame, column and row
+  static ULong64_t getOrderingKey(UInt_t roframe, UShort_t row, UShort_t col) {
+    return (static_cast<ULong64_t>(roframe)<<(8*sizeof(UInt_t))) + (col<<(8*sizeof(Short_t))) + row;
+  } 
+
+  /// Get ROFrame from the ordering key
+  static UInt_t key2ROFrame(ULong64_t key) {
+    return static_cast<UInt_t>(key>>(8*(sizeof(UInt_t)+ROFrameOverFlowBits)));
+  }
+  
   bool equal(FairTimeStamp* other) override
   {
     Digit* mydigi = dynamic_cast<Digit*>(other);
     if (mydigi) {
-      if (mChipIndex == mydigi->getChipIndex() && mCol == mydigi->getColumn() && mRow == mydigi->getRow()) {
+      if (mChipIndex == mydigi->getChipIndex() && mCol == mydigi->getColumn() &&
+	  mRow == mydigi->getRow() && getROFrame() == mydigi->getROFrame()) {
         return true;
       }
     }
@@ -118,6 +163,8 @@ class Digit : public FairTimeStamp
   /// -# Chip indices are equal, but pixel index of this chip is lower
   /// @param other The digit to compare with
   /// @return True if this digit has a lower total index, false otherwise
+  //
+  using FairTimeStamp::operator<; // to avoid hiding
   virtual bool operator<(const Digit& other) const
   {
     /* if (mChipIndex < other.mChipIndex || */
@@ -126,7 +173,7 @@ class Digit : public FairTimeStamp
     /* } */
     return false;
   }
-
+  
   /// Print function: Print basic digit information on the  output stream
   /// @param output Stream to put the digit on
   /// @return The output stream
@@ -154,6 +201,7 @@ class Digit : public FairTimeStamp
     ar& mRow;
     ar& mCol;
     ar& mCharge;
+    ar& mROFrame;
     ar& mLabels;
   }
 
@@ -163,13 +211,18 @@ class Digit : public FairTimeStamp
   friend class boost::serialization::access;
 
 #endif
-  UShort_t mChipIndex; ///< Chip index
-  UShort_t mRow;       ///< Pixel index in X
-  UShort_t mCol;       ///< Pixel index in Z
-  Double_t mCharge;    ///< Accumulated charge
-  Int_t mLabels[3];    ///< Particle labels associated to this digit
+  UShort_t mChipIndex = 0; ///< Chip index
+  UShort_t mRow = 0;       ///< Pixel index in X
+  UShort_t mCol = 0;       ///< Pixel index in Z
+  Float_t  mCharge = 0.f;    ///< Accumulated charge
+  UInt_t   mROFrame = 0;   ///< readout frame ID + number of following frames the signal propagates 
+  Label    mLabels[maxLabels];    ///< Particle labels associated to this digit
 
-  ClassDefOverride(Digit, 2);
+  static constexpr int    ROFrameOverFlowBits = 3;   ///< max bits occupied by ROFrame overflow record
+  static constexpr UInt_t ROFrameOverFlowMask = (0x1<<ROFrameOverFlowBits)-1; //< mask for ROFrame overflow record
+  static constexpr UInt_t ROFrameMask = ~ROFrameOverFlowMask; //< mask for ROFrame record
+  
+  ClassDefOverride(Digit, 3);
 };
 }
 }

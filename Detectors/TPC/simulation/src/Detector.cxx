@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -10,7 +10,7 @@
 
 #include "TPCSimulation/Detector.h"
 #include "TPCSimulation/Point.h"
-#include "TPCSimulation/Constants.h"
+#include "TPCBase/ParameterGas.h"
 
 #include "SimulationDataFormat/DetectorList.h"
 #include "SimulationDataFormat/Stack.h"
@@ -39,7 +39,6 @@
 
 // geo stuff
 #include "TGeoManager.h"
-#include "TGeoGlobalMagField.h"
 #include "TGeoVolume.h"
 #include "TGeoPcon.h"
 #include "TGeoTube.h"
@@ -212,6 +211,7 @@ Bool_t  Detector::ProcessHits(FairVolume* vol)
 {
   mStepCounter++;
   static auto *refMC = TVirtualMC::GetMC();
+  const static ParameterGas &gasParam = ParameterGas::defaultInstance();
 
   /* This method is called from the MC stepping for the sensitive volume only */
   //   LOG(INFO) << "TPC::ProcessHits" << FairLogger::endl;
@@ -241,8 +241,7 @@ Bool_t  Detector::ProcessHits(FairVolume* vol)
     Float_t betaGamma = momentum.P()/refMC->TrackMass();
     betaGamma = TMath::Max(betaGamma, static_cast<Float_t>(7.e-3)); // protection against too small bg
     
-    // NPRIM etc. are defined in "TPCSimulation/Constants.h"
-    const Float_t pp = NPRIM * BetheBlochAleph(betaGamma, BBPARAM[0], BBPARAM[1], BBPARAM[2], BBPARAM[3], BBPARAM[4]);
+    const Float_t pp = gasParam.getNprim() * BetheBlochAleph(betaGamma, gasParam.getBetheBlochParam(0), gasParam.getBetheBlochParam(1), gasParam.getBetheBlochParam(2), gasParam.getBetheBlochParam(3), gasParam.getBetheBlochParam(4));
     
     refMC->SetMaxStep(-TMath::Log(rnd)/pp);
   } else {
@@ -261,15 +260,18 @@ Bool_t  Detector::ProcessHits(FairVolume* vol)
   // These parameters were tuned for GEANT4
 
   Int_t nel=0;
+  const float wIon = gasParam.getWion();
+  const float scaleG4 = gasParam.getScaleG4();
+  const float fanoG4 = gasParam.getFanoFactorG4();
   if(mSimulationType == SimulationType::GEANT3) {
     
-    nel = 1 + static_cast<int>((refMC->Edep()-IPOT) / WION);
+    nel = 1 + static_cast<int>((refMC->Edep()-gasParam.getIpot()) / wIon);
     // LOG(INFO) << "TPC::AddHit" << FairLogger::endl << "GEANT3: Nelectrons: " << nel << FairLogger::endl;
   } else {
     
-    const Double_t meanIon = refMC->Edep() / (WION*SCALEWIONG4);
+    const Double_t meanIon = refMC->Edep() / (wIon*scaleG4);
     if(meanIon > 0)
-      nel = static_cast<int>(FANOFACTORG4 * Gamma(meanIon/FANOFACTORG4)); 
+      nel = static_cast<int>(fanoG4 * Gamma(meanIon/fanoG4));
     // LOG(INFO) << "TPC::AddHit" << FairLogger::endl << "GEANT4: Eloss: " 
     //	      << refMC->Edep() << ", Nelectrons: "
     //	      << nel << FairLogger::endl;
@@ -423,15 +425,10 @@ void Detector::CreateMaterials()
   // Origin: Marek Kowalski  IFJ, Krakow, Marek.Kowalski@ifj.edu.pl
   //-----------------------------------------------------------------
 
-  //   Int_t iSXFLD=((AliMagF*)TGeoGlobalMagField::Instance()->GetField())->Integ();
-  //   Float_t sXMGMX=((AliMagF*)TGeoGlobalMagField::Instance()->GetField())->Max();
-  // Int_t   iSXFLD = ((AliceO2::Field::MagneticField*)TGeoGlobalMagField::Instance()->GetField())->Integral();
-  // Float_t sXMGMX = ((AliceO2::Field::MagneticField*)TGeoGlobalMagField::Instance()->GetField())->Max();
-
-  // until we solve the problem of reading the field from files with changed class names we
-  //  need to hard code some values here to be able to run the macros  M.Al-Turany (Nov.14)
   Int_t   iSXFLD = 2;
   Float_t sXMGMX = 10.0;
+  // init the field tracking params
+  o2::Base::Detector::initFieldTrackingParams(iSXFLD, sXMGMX);
 
   Float_t amat[7]; // atomic numbers
   Float_t zmat[7]; // z
@@ -2393,7 +2390,7 @@ void Detector::ConstructTPCGeometry()
   //
   // and now left inner "head"
   //
-  auto *inplug = new TGeoPcon("inplug", 0.0, 360.0, 14);
+  auto *inplug = new TGeoPcon("inplug", 0.0, 360.0, 13);
 
   inplug->DefineSection(0, 0.3, 0.0, 2.2);
   inplug->DefineSection(1, 0.6, 0.0, 2.2);
@@ -2407,14 +2404,14 @@ void Detector::ConstructTPCGeometry()
   inplug->DefineSection(6, 1.6, 1.55, 2.2);
   inplug->DefineSection(7, 1.875, 1.55, 2.2);
 
-  inplug->DefineSection(8, 1.875, 1.55, 2.2);
-  inplug->DefineSection(9, 2.47, 1.75, 2.2);
 
-  inplug->DefineSection(10, 2.47, 1.75, 2.08);
-  inplug->DefineSection(11, 2.57, 1.8, 2.08);
+  inplug->DefineSection(8, 2.47, 1.75, 2.2);
 
-  inplug->DefineSection(12, 2.57, 1.92, 2.08);
-  inplug->DefineSection(13, 2.95, 1.92, 2.08);
+  inplug->DefineSection(9, 2.47, 1.75, 2.08);
+  inplug->DefineSection(10, 2.57, 1.8, 2.08);
+
+  inplug->DefineSection(11, 2.57, 1.92, 2.08);
+  inplug->DefineSection(12, 2.95, 1.92, 2.08);
   //
   shift1[0]=0.0;
   shift1[1]=-2.09;
@@ -2640,28 +2637,21 @@ void Detector::ConstructTPCGeometry()
   //
   // outer rod plug left
   //
-  auto *outplug = new TGeoPcon("outplug", 0.0, 360.0, 14);
+  auto *outplug = new TGeoPcon("outplug", 0.0, 360.0, 13);
 
   outplug->DefineSection(0, 0.5, 0.0, 2.2);
   outplug->DefineSection(1, 0.7, 0.0, 2.2);
-
   outplug->DefineSection(2, 0.7, 1.55, 2.2);
   outplug->DefineSection(3, 0.8, 1.55, 2.2);
-
   outplug->DefineSection(4, 0.8, 1.55, 1.75);
   outplug->DefineSection(5, 1.2, 1.55, 1.75);
-
   outplug->DefineSection(6, 1.2, 1.55, 2.2);
   outplug->DefineSection(7, 1.875, 1.55, 2.2);
-
-  outplug->DefineSection(8, 1.875, 1.55, 2.2);
-  outplug->DefineSection(9, 2.47, 1.75, 2.2);
-
-  outplug->DefineSection(10, 2.47, 1.75, 2.08);
-  outplug->DefineSection(11, 2.57, 1.8, 2.08);
-
-  outplug->DefineSection(12, 2.57, 1.92, 2.08);
-  outplug->DefineSection(13, 2.95, 1.92, 2.08);
+  outplug->DefineSection(8, 2.47, 1.75, 2.2);
+  outplug->DefineSection(9, 2.47, 1.75, 2.08);
+  outplug->DefineSection(10, 2.57, 1.8, 2.08);
+  outplug->DefineSection(11, 2.57, 1.92, 2.08);
+  outplug->DefineSection(12, 2.95, 1.92, 2.08);
   //
   shift1[0] = 0.0;
   shift1[1] = 2.09;
@@ -3221,8 +3211,8 @@ void Detector::GeantHack()
              >> flag[6] >> flag[7] >> flag[8] >> flag[9] >> flag[10] >> flag[11];
 
     if(0<=itmed && itmed < 100) {
-      ktmed=getMedium(itmed);
-      if(!ktmed) {
+      ktmed=getMediumID(itmed);
+      if(ktmed==-1) {
         LOG(INFO) << Form("Invalid tracking medium code %d for %s",itmed,GetName()) << FairLogger::endl;
         continue;
       }

@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -17,8 +17,8 @@
 
 #include <Vc/Vc>
 
-#include "TPCSimulation/Constants.h"
 #include "TPCBase/PadSecPos.h"
+#include "TPCBase/ParameterElectronics.h"
 #include "TPCSimulation/Baseline.h"
 
 #include "TSpline.h"
@@ -55,14 +55,15 @@ class SAMPAProcessing
     /// \param ADCcounts ADC value of the signal (common mode already subtracted)
     /// \param padSecPos PadSecPos of the signal
     /// \return ADC value after application of noise, pedestal and saturation
-    static float makeSignal(float ADCcounts, const PadSecPos &padSecPos);
+    static float makeSignal(float ADCcounts, const PadSecPos &padSecPos, float &pedestal, float &noise);
 
     /// A delta signal is shaped by the FECs and thus spread over several time bins
     /// This function returns an array with the signal spread into the following time bins
     /// \param ADCsignal Signal of the incoming charge
     /// \param driftTime t0 of the incoming charge
     /// \return Array with the shaped signal
-    static void getShapedSignal(float ADCsignal, float driftTime, std::array<float, mNShapedPoints> &signalArray);
+    /// \todo the size of the array should be retrieved from ParameterElectronics::getNShapedPoints()
+    static void getShapedSignal(float ADCsignal, float driftTime, std::vector<float> &signalArray);
 
     /// Value of the Gamma4 shaping function at a given time (vectorized)
     /// \param time Time of the ADC value with respect to the first bin in the pulse
@@ -90,29 +91,33 @@ template<typename T>
 inline
 T SAMPAProcessing::getADCvalue(T nElectrons)
 {
-  T conversion = QEL*1.e15*CHIPGAIN*ADCSAT/ADCDYNRANGE; // 1E-15 is to convert Coulomb in fC
+  const static ParameterElectronics &eleParam = ParameterElectronics::defaultInstance();
+  T conversion = eleParam.getElectronCharge()*1.e15*eleParam.getChipGain()*eleParam.getADCSaturation()/eleParam.getADCDynamicRange(); // 1E-15 is to convert Coulomb in fC
   return nElectrons*conversion;
 }
 
 inline
-float SAMPAProcessing::makeSignal(float ADCcounts, const PadSecPos& padSecPos)
+float SAMPAProcessing::makeSignal(float ADCcounts, const PadSecPos& padSecPos, float &pedestal, float &noise)
 {
   SAMPAProcessing &sampa = SAMPAProcessing::instance();
   static Baseline baseline;
   float signal = ADCcounts;
   /// \todo Pedestal to be implemented in baseline class
-//  signal += baseline.getPedestal(padSecPos);
-  //signal += 70.f;
-  //signal += baseline.getNoise(padSecPos);
+//  pedestal = baseline.getPedestal(padSecPos);
+  noise = baseline.getNoise(padSecPos);
+//  signal += noise;
+//  signal += pedestal;
   return sampa.getADCSaturation(signal);
 }
 
 inline
 const float SAMPAProcessing::getADCSaturation(const float signal) const
 {
+  const static ParameterElectronics &eleParam = ParameterElectronics::defaultInstance();
   /// \todo Performance of TSpline?
   const float saturatedSignal = mSaturationSpline->Eval(signal);
-  if(saturatedSignal > ADCSAT-1) return ADCSAT-1;
+  const float adcSaturation = eleParam.getADCSaturation();
+  if(saturatedSignal > adcSaturation-1) return adcSaturation-1;
   return saturatedSignal;
 }
 
@@ -120,7 +125,8 @@ template<typename T>
 inline
 T SAMPAProcessing::getGamma4(T time, T startTime, T ADC)
 {
-  Vc::float_v tmp0 = (time-startTime)/PEAKINGTIME;
+  const static ParameterElectronics &eleParam = ParameterElectronics::defaultInstance();
+  Vc::float_v tmp0 = (time-startTime)/eleParam.getPeakingTime();
   Vc::float_m cond = (tmp0 > 0);
   Vc::float_v tmp;
   tmp(cond) = tmp0;

@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -18,40 +18,39 @@
 #include "TPCBase/PadSecPos.h"
 #include "TPCBase/CRU.h"
 #include "TPCSimulation/DigitMC.h"
+#include "TPCSimulation/DigitMCMetaData.h"
 
 #include <boost/range/adaptor/reversed.hpp>
 #include <boost/bind.hpp>
 
 using namespace o2::TPC;
 
-void DigitPad::fillOutputContainer(TClonesArray *output, int cru, int timeBin, int row, int pad, float commonMode)
+void DigitPad::fillOutputContainer(TClonesArray *output, TClonesArray *debug, int cru, int timeBin, int row, int pad, float commonMode)
 {
   /// The charge accumulated on that pad is converted into ADC counts, saturation of the SAMPA is applied and a Digit is created in written out
   const float totalADC = mChargePad - commonMode; // common mode is subtracted here in order to properly apply noise, pedestals and saturation of the SAMPA
 
-  const float mADC = SAMPAProcessing::makeSignal(totalADC, PadSecPos(CRU(cru).sector(), PadPos(row, pad)));
+  float noise = 0.f;
+  float pedestal = 0.f;
+
+  const float mADC = SAMPAProcessing::makeSignal(totalADC, PadSecPos(CRU(cru).sector(), PadPos(row, pad)), pedestal, noise);
   if(mADC > 0) {
 
-#ifndef TPC_DIGIT_USEFAIRLINKS
     static std::vector<long> MClabels;
     MClabels.resize(0);
     DigitPad::processMClabels(MClabels);
-#endif
 
     TClonesArray &clref = *output;
     const size_t digiPos = clref.GetEntriesFast();
-    DigitMC *digit = new(clref[digiPos]) DigitMC(
-#ifndef TPC_DIGIT_USEFAIRLINKS
-						 MClabels,
-#endif
-						 cru, mADC, row, pad, timeBin, commonMode);
-#ifdef TPC_DIGIT_USEFAIRLINKS
-    digit->SetLinks(getMCLinks());
-#endif
+    new(clref[digiPos]) DigitMC(MClabels, cru, mADC, row, pad, timeBin); /// create DigitMC
+    if(debug!=nullptr) {
+      TClonesArray &clrefDebug = *debug;
+      const size_t digiPosDebug = clrefDebug.GetEntriesFast();
+      new(clrefDebug[digiPosDebug]) DigitMCMetaData(mChargePad, commonMode, pedestal, noise); /// create DigitMCMetaData
+    }
   }
 }
 
-#ifndef TPC_DIGIT_USEFAIRLINKS
 void DigitPad::processMClabels(std::vector<long> &sortedMCLabels) const
 {
   /// Dump the map into a vector of pairs
@@ -63,4 +62,3 @@ void DigitPad::processMClabels(std::vector<long> &sortedMCLabels) const
     sortedMCLabels.emplace_back(aMCIDreversed.first);
   }
 }
-#endif

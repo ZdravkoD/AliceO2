@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -14,7 +14,6 @@
 
 #include <TClonesArray.h>
 #include "TPCSimulation/Digitizer.h"
-#include "TPCSimulation/Constants.h"
 #include "TPCSimulation/ElectronTransport.h"
 #include "TPCSimulation/GEMAmplification.h"
 #include "TPCSimulation/PadResponse.h"
@@ -33,8 +32,8 @@ bool o2::TPC::Digitizer::mDebugFlagPRF = false;
 bool o2::TPC::Digitizer::mIsContinuous = true;
 
 Digitizer::Digitizer()
-  : mDigitContainer(nullptr)
-  , mDebugTreePRF(nullptr)
+  : mDigitContainer(nullptr),
+    mDebugTreePRF(nullptr)
 {}
 
 Digitizer::~Digitizer()
@@ -55,7 +54,9 @@ void Digitizer::init()
 DigitContainer *Digitizer::Process(TClonesArray *points)
 {
 //  mDigitContainer->reset();
-  const Mapper& mapper = Mapper::instance();
+  const static Mapper& mapper = Mapper::instance();
+  const static ParameterDetector &detParam = ParameterDetector::defaultInstance();
+  const static ParameterElectronics &eleParam = ParameterElectronics::defaultInstance();
   FairRootManager *mgr = FairRootManager::Instance();
 
   const float eventTime = ( mIsContinuous) ? mgr->GetEventTime() * 0.001 : 0.f; /// transform in us
@@ -65,9 +66,9 @@ DigitContainer *Digitizer::Process(TClonesArray *points)
   static ElectronTransport electronTransport;
   static PadResponse padResponse;
 
-  const int MCEventID = mgr->GetEntryNr();
-
-  static std::array<float, mNShapedPoints> signalArray;
+  const int nShapedPoints = eleParam.getNShapedPoints();
+  static std::vector<float> signalArray;
+  signalArray.resize(nShapedPoints);
 
   static size_t hitCounter=0;
   for(auto pointObject : *points) {
@@ -96,7 +97,7 @@ DigitContainer *Digitizer::Process(TClonesArray *points)
       const GlobalPosition3D posEleDiff = electronTransport.getElectronDrift(posEle);
 
       /// \todo Time management in continuous mode (adding the time of the event?)
-      const float driftTime = getTime(posEleDiff.getZ()) + inputpoint->GetTime() * 0.001; /// in us
+      const float driftTime = getTime(posEleDiff.Z()) + inputpoint->GetTime() * 0.001; /// in us
       const float absoluteTime = driftTime + eventTime;
 
       /// Attachment
@@ -104,7 +105,7 @@ DigitContainer *Digitizer::Process(TClonesArray *points)
 
       /// Remove electrons that end up outside the active volume
       /// \todo should go to mapper?
-      if(fabs(posEleDiff.getZ()) > TPCLENGTH) continue;
+      if(fabs(posEleDiff.Z()) > detParam.getTPClength()) continue;
 
       const DigitPos digiPadPos = mapper.findDigitPosFromGlobalPosition(posEleDiff);
       if(!digiPadPos.isValid()) continue;
@@ -143,8 +144,8 @@ DigitContainer *Digitizer::Process(TClonesArray *points)
 
       const float ADCsignal = SAMPAProcessing::getADCvalue(nElectronsGEM * normalizedPadResponse);
       SAMPAProcessing::getShapedSignal(ADCsignal, absoluteTime, signalArray);
-      for(float i=0; i<mNShapedPoints; ++i) {
-        const float time = absoluteTime + i * ZBINWIDTH;
+      for(float i=0; i<nShapedPoints; ++i) {
+        const float time = absoluteTime + i * eleParam.getZBinWidth();
         mDigitContainer->addDigit(MCTrackID, digiPos.getCRU().number(), getTimeBinFromTime(time), row, pad, signalArray[i]);
       }
 

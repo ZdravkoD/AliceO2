@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -27,7 +27,7 @@
 
 #include "aliceHLTwrapper/EventSampler.h"
 #include "runFairMQDevice.h" // FairMQDevice launcher boiler plate code
-using namespace ALICE::HLT;
+using namespace o2::alice_hlt;
 
 namespace bpo = boost::program_options;
 
@@ -38,5 +38,5 @@ void addCustomOptions(bpo::options_description& options)
 
 FairMQDevicePtr getDevice(const FairMQProgOptions& /*config*/)
 {
-  return new ALICE::HLT::EventSampler;
+  return new o2::alice_hlt::EventSampler;
 }

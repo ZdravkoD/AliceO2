@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -69,29 +69,29 @@ class Detector : public o2::Base::Detector
   void CreateMaterials();
   void ConstructGeometry() final;
 
-  void SetTOFholes(Bool_t flag = kTRUE) { mTOFHoles = flag; }
+  void setTOFholes(Bool_t flag = kTRUE) { mTOFHoles = flag; }
  protected:
-  HitType* AddHit(Float_t x, Float_t y, Float_t z, Float_t time, Float_t energy, Int_t trackId, Int_t detId);
+  HitType* addHit(Float_t x, Float_t y, Float_t z, Float_t time, Float_t energy, Int_t trackId, Int_t detId);
   virtual void DefineGeometry(Float_t xtof, Float_t ytof, Float_t zlenA) final;
   virtual void MaterialMixer(Float_t* p, const Float_t* const a, const Float_t* const m, Int_t n) const final;
 
  private:
-  void CreateModules(Float_t xtof, Float_t ytof, Float_t zlenA, Float_t xFLT, Float_t yFLT, Float_t zFLTA) const;
-  void MakeStripsInModules(Float_t ytof, Float_t zlenA) const;
-  void CreateModuleCovers(Float_t xtof, Float_t zlenA) const;
-  void CreateBackZone(Float_t xtof, Float_t ytof, Float_t zlenA) const;
-  void MakeFrontEndElectronics(Float_t xtof) const;
-  void MakeFEACooling(Float_t xtof) const;
-  void MakeNinoMask(Float_t xtof) const;
-  void MakeSuperModuleCooling(Float_t xtof, Float_t ytof, Float_t zlenA) const;
-  void MakeSuperModuleServices(Float_t xtof, Float_t ytof, Float_t zlenA) const;
-  void MakeReadoutCrates(Float_t ytof) const;
+  void createModules(Float_t xtof, Float_t ytof, Float_t zlenA, Float_t xFLT, Float_t yFLT, Float_t zFLTA) const;
+  void makeStripsInModules(Float_t ytof, Float_t zlenA) const;
+  void createModuleCovers(Float_t xtof, Float_t zlenA) const;
+  void createBackZone(Float_t xtof, Float_t ytof, Float_t zlenA) const;
+  void makeFrontEndElectronics(Float_t xtof) const;
+  void makeFEACooling(Float_t xtof) const;
+  void makeNinoMask(Float_t xtof) const;
+  void makeSuperModuleCooling(Float_t xtof, Float_t ytof, Float_t zlenA) const;
+  void makeSuperModuleServices(Float_t xtof, Float_t ytof, Float_t zlenA) const;
+  void makeReadoutCrates(Float_t ytof) const;
 
-  void MakeModulesInBTOFvolumes(Float_t ytof, Float_t zlenA) const;
-  void MakeCoversInBTOFvolumes() const;
-  void MakeBackInBTOFvolumes(Float_t ytof) const;
+  void makeModulesInBTOFvolumes(Float_t ytof, Float_t zlenA) const;
+  void makeCoversInBTOFvolumes() const;
+  void makeBackInBTOFvolumes(Float_t ytof) const;
 
-  void AddAlignableVolumes() const;
+  void addAlignableVolumes() const;
 
   Int_t mEventNr; // event count
   Int_t mTOFSectors[o2::tof::Geo::NSECTORS];

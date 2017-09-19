@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -27,12 +27,17 @@
 #pragma link off all classes;
 #pragma link off all functions;
 
-#pragma link C++ class  o2::Passive::Magnet+;
+#pragma link C++ class  o2::passive::Absorber+;
+#pragma link C++ class  o2::passive::Dipole+;
+#pragma link C++ class  o2::passive::Magnet+;
 #pragma link C++ class  o2::Passive::Cave+;
 #pragma link C++ class  o2::Passive::GeoCave+;
 #pragma link C++ class  o2::Passive::PassiveContFact+;
-#pragma link C++ class  o2::Passive::Pipe+;
+#pragma link C++ class  o2::passive::Pipe+;
 #pragma link C++ class  o2::Passive::FrameStructure+;
+#pragma link C++ class  o2::passive::FrameStructure+;
+#pragma link C++ class  o2::passive::Shil+;
+#pragma link C++ class  o2::passive::Hall+;
 
 #endif
 

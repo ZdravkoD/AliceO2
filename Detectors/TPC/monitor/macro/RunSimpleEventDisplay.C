@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -265,8 +265,8 @@ void FillMaxHists(Int_t type=0)
         if (TMath::Abs(value)>kEpsilon){
           if (!type&&hSide){
             const GlobalPosition2D global2D = mMapper.getPadCentre(PadSecPos(Sector(iROC%36), PadPos(irow, ipad+(iROC>=36)*mMapper.getNumberOfRowsROC(iROC))));
-            Int_t binx = 1+TMath::Nint((global2D.getX()+250.)*hSide->GetNbinsX()/500.);
-            Int_t biny = 1+TMath::Nint((global2D.getY()+250.)*hSide->GetNbinsY()/500.);
+            Int_t binx = 1+TMath::Nint((global2D.X()+250.)*hSide->GetNbinsX()/500.);
+            Int_t biny = 1+TMath::Nint((global2D.Y()+250.)*hSide->GetNbinsY()/500.);
             hSide->SetBinContent(binx,biny,value);
           }
           const int nPads = mMapper.getNumberOfPadsInRowROC(iROC,irow);
@@ -300,7 +300,7 @@ void FillMaxHistsSector()
 void SelectSector(Int_t sector)
 {
   mSelectedSector=sector%36;
-  mEvDisp.mSelectedSector=mSelectedSector;
+  mEvDisp.setSelectedSector(mSelectedSector);
   FillMaxHists(1);
 }
 
@@ -312,10 +312,10 @@ Int_t FindROCFromXY(const Float_t x, const Float_t y, const Int_t side)
   //
   
   Float_t r=TMath::Sqrt(x*x+y*y);
-  static const float innerWall = mMapper.getPadCentre(PadPos(0,0)).getX()-5.;
-  static const float outerWall = mMapper.getPadCentre(PadPos(151,0)).getX()+5.;
-  static const float outerIROC = mMapper.getPadCentre(PadPos(62,0)).getX();
-  static const float innerOROC = mMapper.getPadCentre(PadPos(63,0)).getX();
+  static const float innerWall = mMapper.getPadCentre(PadPos(0,0)).X()-5.;
+  static const float outerWall = mMapper.getPadCentre(PadPos(151,0)).X()+5.;
+  static const float outerIROC = mMapper.getPadCentre(PadPos(62,0)).X();
+  static const float innerOROC = mMapper.getPadCentre(PadPos(63,0)).X();
   static const float betweenROC = (outerIROC+innerOROC)/2.;
   //check radial boundary
   if (r<innerWall || r>outerWall) return -1;
@@ -453,8 +453,8 @@ void RunSimpleEventDisplay(TString fileInfo, TString pedestalFile="", Int_t nTim
     }
   }
   mEvDisp.setupContainers(fileInfo);
-  mEvDisp.mSelectedSector=mSelectedSector;
-  mEvDisp.mLastSelSector=mSelectedSector;
+  mEvDisp.setSelectedSector(mSelectedSector);
+  mEvDisp.setLastSector (mSelectedSector);
   mEvDisp.setTimeBinsPerCall(nTimeBinsPerCall);
   InitGUI();
 //  while (mRawReader->NextEvent() && mRawReader->GetEventFromTag()==0) Next();

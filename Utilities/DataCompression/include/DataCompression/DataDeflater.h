@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -86,6 +86,8 @@ public:
   int reset() {
     mCurrent = 0;
     mFilledBits = 0;
+
+    return 0;
   }
 
   /**
@@ -169,7 +171,7 @@ private:
   /// current target word
   target_type mCurrent;
   /// current bit position
-  int mFilledBits;
+  unsigned mFilledBits;
   /// codec instance
   Codec mCodec;
 };

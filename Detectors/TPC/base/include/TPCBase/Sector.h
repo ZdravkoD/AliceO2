@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -68,7 +68,7 @@ class Sector
 
     /// int return operator to use similar as integer
     /// \return sector number
-    operator int() { return int(mSector); }
+    operator int() const { return int(mSector); }
 
     /// assignment operator with int
     Sector& operator=(int sector) { mSector=sector%MAXSECTOR; return *this; }

@@ -12,9 +12,10 @@ set(SRCS
    src/Clusterer.cxx
    src/ClusterContainer.cxx
    src/ClustererTask.cxx
-   src/CommonMode.cxx
+   src/CommonModeContainer.cxx
    src/Detector.cxx
    src/DigitMC.cxx
+   src/DigitMCMetaData.cxx
    src/DigitContainer.cxx
    src/DigitCRU.cxx
    src/Digitizer.cxx
@@ -41,9 +42,10 @@ set(HEADERS
    include/${MODULE_NAME}/Clusterer.h
    include/${MODULE_NAME}/ClusterContainer.h
    include/${MODULE_NAME}/ClustererTask.h
-   include/${MODULE_NAME}/CommonMode.h
+   include/${MODULE_NAME}/CommonModeContainer.h
    include/${MODULE_NAME}/Detector.h
    include/${MODULE_NAME}/DigitMC.h
+   include/${MODULE_NAME}/DigitMCMetaData.h
    include/${MODULE_NAME}/DigitContainer.h
    include/${MODULE_NAME}/DigitCRU.h
    include/${MODULE_NAME}/Digitizer.h
@@ -102,10 +104,11 @@ foreach (_file RANGE 0 ${_length}) # loop over a range because we traverse 2 lis
 endforeach (_file RANGE 0 ${_length})
 
 set(TEST_SRCS
-   #test/testTPCDigitContainer.cxx
+   test/testTPCCommonMode.cxx
+   test/testTPCDigitContainer.cxx
    test/testTPCElectronTransport.cxx
    test/testTPCGEMAmplification.cxx
-   #test/testTPCSAMPAProcessing.cxx
+   test/testTPCSAMPAProcessing.cxx
    test/testTPCSimulation.cxx
 )
 
@@ -114,3 +117,13 @@ O2_GENERATE_TESTS(
   MODULE_LIBRARY_NAME ${MODULE_NAME}
   TEST_SRCS ${TEST_SRCS}
 )
+
+# add the TPC run sim as a unit test (if simulation was enabled)
+if (HAVESIMULATION)
+  add_test(NAME tpcsim_G4 COMMAND ${CMAKE_BINARY_DIR}/bin/tpc-run-sim -n 2 -e  TGeant4)
+  set_tests_properties(tpcsim_G4 PROPERTIES PASS_REGULAR_EXPRESSION "Macro finished succesfully")
+  add_test(NAME tpcsim_G3 COMMAND ${CMAKE_BINARY_DIR}/bin/tpc-run-sim -n 2 -e  TGeant3)
+  set_tests_properties(tpcsim_G3 PROPERTIES PASS_REGULAR_EXPRESSION "Macro finished succesfully")
+  # sets the necessary environment
+  set_tests_properties(tpcsim_G3 tpcsim_G4  PROPERTIES ENVIRONMENT VMCWORKDIR=${CMAKE_SOURCE_DIR})
+endif()

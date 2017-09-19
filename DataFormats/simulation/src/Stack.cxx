@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -298,9 +298,9 @@ void Stack::UpdateTrackIndex(TRefArray *detList)
     mIndexIterator = mIndexMap.find(iMotherOld);
     if (mIndexIterator == mIndexMap.end()) {
       if (mLogger) {
-        mLogger->Fatal(MESSAGE_ORIGIN, "Stack: Particle index %i not found in dex map! ", iMotherOld);
+        mLogger->Fatal(MESSAGE_ORIGIN, "Stack: Track index %i not found index map! ", iMotherOld);
       }
-      Fatal("Stack::UpdateTrackIndex", "Particle index not found in map");
+      Fatal("Stack::UpdateTrackIndex", "Track index not found in map");
     }
     track->SetMotherTrackId((*mIndexIterator).second);
   }
@@ -331,9 +331,9 @@ void Stack::UpdateTrackIndex(TRefArray *detList)
         mIndexIterator = mIndexMap.find(iTrack);
         if (mIndexIterator == mIndexMap.end()) {
           if (mLogger) {
-            mLogger->Fatal(MESSAGE_ORIGIN, "Stack: Particle index %i not found in index map! ", iTrack);
+            mLogger->Fatal(MESSAGE_ORIGIN, "Stack: Track index %i not found in index map! ", iTrack);
           }
-          Fatal("Stack::UpdateTrackIndex", "Particle index not found in map");
+          Fatal("Stack::UpdateTrackIndex", "Track index not found in map");
         }
         point->SetTrackID((*mIndexIterator).second);
         point->SetLink(FairLink("MCTrack", (*mIndexIterator).second));

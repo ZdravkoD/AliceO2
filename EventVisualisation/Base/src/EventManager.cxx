@@ -2,61 +2,45 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
 ///
-/// \file    EveInitializer.cxx
+/// \file    EventManager.cxx
 /// \author  Jeremi Niedziela
 
-#include "EventManager.h"
+#include "EventVisualisationBase/EventManager.h"
 
-#include "MultiView.h"
+#include "EventVisualisationDataConverter/MinimalisticEvent.h"
+#include "EventVisualisationBase/Track.h"
+#include "EventVisualisationBase/ConfigurationManager.h"
 
 #include <TEveManager.h>
 #include <TEveProjectionManager.h>
 #include <TSystem.h>
+#include <TEnv.h>
+#include <TEveElement.h>
+#include <TEveTrackPropagator.h>
+#include <TGListTree.h>
+#include <TEveTrack.h>
 
 using namespace std;
 
 namespace o2  {
 namespace EventVisualisation {
 
-EventManager* EventManager::sMaster  = nullptr;
-
-EventManager* EventManager::getInstance()
+EventManager& EventManager::getInstance()
 {
-  if(!sMaster){
-    new EventManager();
-  }
-  return sMaster;
-}
-
-void EventManager::registerEvent(TEveElement* event)
-{
-  auto multiView = MultiView::getInstance();
-  
-  gEve->AddElement(event,multiView->getScene(MultiView::Scene3dEvent));
-  multiView->getProjection(MultiView::ProjectionRphi)->ImportElements(event,multiView->getScene(MultiView::SceneRphiEvent));
-  multiView->getProjection(MultiView::ProjectionZrho)->ImportElements(event,multiView->getScene(MultiView::SceneZrhoEvent));
-}
-
-void EventManager::restroyAllEvents()
-{
-  auto multiView = MultiView::getInstance();
-  
-  multiView->getScene(MultiView::Scene3dEvent)->DestroyElements();
-  multiView->getScene(MultiView::SceneRphiEvent)->DestroyElements();
-  multiView->getScene(MultiView::SceneZrhoEvent)->DestroyElements();
+  static EventManager instance;
+  return instance;
 }
 
 EventManager::EventManager() : TEveEventManager("Event",""),
 mCurrentDataSourceType(SourceOffline)
 {
-  sMaster = this;
 }
 
 EventManager::~EventManager()

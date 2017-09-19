@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -32,12 +32,11 @@ namespace o2
 {
 namespace qc
 {
-MergerDevice::MergerDevice(unique_ptr<Merger> merger, string mergerId, int numIoThreads)
+MergerDevice::MergerDevice(unique_ptr<Merger> merger, string mergerId)
   : mMerger(move(merger)), ddsCustomCmd(new CCustomCmd(mService))
 {
   this->SetTransport("zeromq");
-  this->SetProperty(Id, mergerId);
-  this->SetProperty(NumIoThreads, numIoThreads);
+  this->SetId(mergerId);
 
   procSelfStatus.open("/proc/self/status");
 
@@ -119,7 +118,7 @@ boost::property_tree::ptree MergerDevice::createCheckStateResponse(const ptree& 
 
   ptree response;
   response.put("command", "state");
-  response.put("node_id", GetProperty(Id, "error"));
+  response.put("node_id", GetId());
   response.put("node_state", GetCurrentStateName());
   response.put("internal_message_id", to_string(mInternalStateMessageId));
   response.put("request_timestamp", request.get<string>("requestTimestamp"));
@@ -140,7 +139,7 @@ boost::property_tree::ptree MergerDevice::createGetMetricsResponse(const ptree& 
 
   ptree response;
   response.put("command", "metrics");
-  response.put("node_id", GetProperty(Id, "error"));
+  response.put("node_id", GetId());
   response.put("PID", getpid());
   response.put("internal_message_id", to_string(mInternalMetricMessageId));
   response.put("request_timestamp", request.get<string>("requestTimestamp"));

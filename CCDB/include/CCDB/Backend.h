@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -27,6 +27,8 @@
 namespace o2 {
 namespace CDB {
 
+class Condition;
+
 class Backend {
 public:
   virtual ~Backend()= default;
@@ -35,7 +37,7 @@ public:
   virtual void Pack(const std::string& path, const std::string& key, std::string*& messageString) = 0;
 
   /// UnPack
-  virtual void UnPack(std::unique_ptr<FairMQMessage> msg) = 0;
+  virtual Condition* UnPack(std::unique_ptr<FairMQMessage> msg) = 0;
 
   /// Serializes a key (and optionally value) to an std::string using Protocol Buffers
   void Serialize(std::string*& messageString, const std::string& key, const std::string& operationType,

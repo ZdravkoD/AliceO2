@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -20,15 +20,22 @@
 #include <TObject.h>
 
 #include "DetectorsBase/Track.h"
+#include "SimulationDataFormat/MCCompLabel.h"
 
 namespace o2
 {
+
+namespace ITSMFT {
+class Cluster;
+}
+
 namespace ITS
 {
-class Cluster;
 
 class CookedTrack : public TObject 
 {
+  using Label = o2::MCCompLabel;
+  
  public:
   CookedTrack();
   CookedTrack(float x, float alpha, const std::array<float,o2::Base::Track::kNParams> &par, const std::array<float,o2::Base::Track::kCovMatSize> &cov);
@@ -37,10 +44,10 @@ class CookedTrack : public TObject
   ~CookedTrack() override;
 
   // These functions must be provided
-  Double_t getPredictedChi2(const Cluster* c) const;
+  Double_t getPredictedChi2(const o2::ITSMFT::Cluster* c) const;
   Bool_t propagate(Double_t alpha, Double_t x, Double_t bz);
   Bool_t correctForMeanMaterial(Double_t x2x0, Double_t xrho, Bool_t anglecorr = kTRUE);
-  Bool_t update(const Cluster* c, Double_t chi2, Int_t idx);
+  Bool_t update(const o2::ITSMFT::Cluster* c, Double_t chi2, Int_t idx);
 
   // Other functions
   Int_t getChi2() const { return mChi2; }
@@ -54,8 +61,8 @@ class CookedTrack : public TObject
   void setExternalClusterIndex(Int_t layer, Int_t idx);
   void resetClusters();
 
-  void setLabel(Int_t lab) { mLabel = lab; }
-  Int_t getLabel() const { return mLabel; }
+  void setLabel(Label lab) { mLabel = lab; }
+  Label getLabel() const { return mLabel; }
   Bool_t isBetter(const CookedTrack& best, Double_t maxChi2) const;
 
   Double_t getCurvature(Double_t bz) const { return mTrack.GetCurvature(float(bz)); }
@@ -68,10 +75,12 @@ class CookedTrack : public TObject
   Double_t getPt() const { return mTrack.GetPt(); }
   Bool_t getPxPyPz(std::array<float,3> &pxyz) const { return mTrack.GetPxPyPz(pxyz); }
   void resetCovariance(Double_t s2 = 0.) { mTrack.ResetCovariance(float(s2)); }
+
+  const o2::Base::Track::TrackParCov&  getBaseTrack() const {return mTrack;}
   
  private:
   o2::Base::Track::TrackParCov mTrack; ///< Base track
-  Int_t mLabel;              ///< Monte Carlo label for this track
+  Label  mLabel;              ///< Monte Carlo label for this track
   Double_t mMass;            ///< Assumed mass for this track
   Double_t mChi2;            ///< Chi2 for this track
   std::vector<Int_t> mIndex; ///< Indices of associated clusters

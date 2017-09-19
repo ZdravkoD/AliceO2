@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -17,6 +17,7 @@
 #include <cstddef>   // for NULL
 #include "Rtypes.h"   // for Int_t, Bool_t, kFALSE, kTRUE, ClassDef, etc
 #include "TString.h"  // for TString
+#include <CCDB/TObjectWrapper.h>
 
 class TFile;
 namespace o2 { namespace CDB { class Condition; }}  // lines 20-20
@@ -133,11 +134,11 @@ class Manager : public TObject
       return mOcdbUploadMode;
     }
 
-    Condition *getObject(const ConditionId &query, Bool_t forceCaching = kFALSE);
+    Condition *getCondition(const ConditionId &query, Bool_t forceCaching = kFALSE);
 
-    Condition *getObject(const IdPath &path, Int_t runNumber = -1, Int_t version = -1, Int_t subVersion = -1);
+    Condition *getCondition(const IdPath &path, Int_t runNumber = -1, Int_t version = -1, Int_t subVersion = -1);
 
-    Condition *getObject(const IdPath &path, const IdRunRange &runRange, Int_t version = -1, Int_t subVersion = -1);
+    Condition *getCondition(const IdPath &path, const IdRunRange &runRange, Int_t version = -1, Int_t subVersion = -1);
 
     Condition *getConditionFromSnapshot(const char *path);
 
@@ -151,7 +152,13 @@ class Manager : public TObject
 
     Bool_t putObject(TObject *object, const ConditionId &id, ConditionMetaData *metaData, const char *mirrors = "");
 
-    Bool_t putObject(Condition *entry, const char *mirrors = "");
+    template <typename T>
+    Bool_t putObjectAny(T *ptr, const ConditionId &id, ConditionMetaData *metaData, const char *mirrors = "") {
+      TObjectWrapper<T> local(ptr);
+      return putObject(&local, id, metaData, mirrors);
+    }
+
+    Bool_t putCondition(Condition *entry, const char *mirrors = "");
 
     void setCacheFlag(Bool_t cacheFlag)
     {

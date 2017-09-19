@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -13,10 +13,7 @@
 /// \author Andi Mathis, TU München, andreas.mathis@ph.tum.de
 
 #include "TPCSimulation/DigitContainer.h"
-#include "TPCSimulation/DigitCRU.h"
-#include "TPCSimulation/CommonMode.h"
 #include "TPCBase/Mapper.h"
-#include "TPCBase/CRU.h"
 #include <iostream>
 
 using namespace o2::TPC;
@@ -30,40 +27,22 @@ void DigitContainer::addDigit(size_t hitID, int cru, int timeBin, int row, int p
   }
   else{
     const Mapper& mapper = Mapper::instance();
-    mCRU[cru] = std::unique_ptr<DigitCRU> (new DigitCRU(cru));
+    mCRU[cru] = std::make_unique<DigitCRU>(cru, mCommonModeContainer);
     mCRU[cru]->setDigit(hitID, timeBin, row, pad, charge);
   }
+  /// Take care of the common mode
+  mCommonModeContainer.addDigit(cru, timeBin, charge);
 }
 
 
-void DigitContainer::fillOutputContainer(TClonesArray *output, int eventTime, bool isContinuous)
+void DigitContainer::fillOutputContainer(TClonesArray *output, TClonesArray *debug, int eventTime, bool isContinuous)
 {
   for(auto &aCRU : mCRU) {
     if(aCRU == nullptr) continue;
-    aCRU->fillOutputContainer(output, aCRU->getCRUID(), eventTime, isContinuous);
+    aCRU->fillOutputContainer(output, debug, aCRU->getCRUID(), eventTime, isContinuous);
     if(!isContinuous) {
       aCRU->reset();
     }
   }
-}
-
-void DigitContainer::fillOutputContainer(TClonesArray *output, std::vector<CommonMode> &commonModeContainer)
-{
-  for(auto &aCRU : mCRU) {
-    if(aCRU == nullptr) continue;
-    aCRU->fillOutputContainer(output, aCRU->getCRUID(), commonModeContainer);
-  }
-}
-
-
-void DigitContainer::processCommonMode(std::vector<CommonMode> & commonModeContainer)
-{
-  std::vector<CommonMode> summedCharges(0);
-  for(auto &aCRU : mCRU) {
-    if(aCRU == nullptr) continue;
-    aCRU->processCommonMode(summedCharges, aCRU->getCRUID());
-  }
-  
-  CommonMode c;
-  c.computeCommonMode(summedCharges, commonModeContainer);
+  mCommonModeContainer.cleanUp(eventTime, isContinuous);
 }

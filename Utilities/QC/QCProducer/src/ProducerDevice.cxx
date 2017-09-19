@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -29,12 +29,11 @@ namespace o2
 {
 namespace qc
 {
-ProducerDevice::ProducerDevice(const char* producerId, const int numIoThreads, shared_ptr<Producer>& producer)
+ProducerDevice::ProducerDevice(const char* producerId, shared_ptr<Producer>& producer)
   : ddsCustomCmd(new CCustomCmd(mService))
 {
   this->SetTransport("zeromq");
-  this->SetProperty(Id, producerId);
-  this->SetProperty(NumIoThreads, numIoThreads);
+  this->SetId(producerId);
   mProducer = producer;
   lastCheckedSecond = getCurrentSecond();
 }
@@ -135,7 +134,7 @@ void ProducerDevice::subscribeDdsCommands()
     if (request.get<string>("command") == "check-state") {
       ptree response;
       response.put("command", "check-state");
-      response.put("node_id", GetProperty(Id, "error"));
+      response.put("node_id", GetId());
       response.put("node_state", GetCurrentStateName());
       response.put("internal_message_id", to_string(mInternalStateMessageId));
       response.put("request_timestamp", request.get<string>("requestTimestamp"));

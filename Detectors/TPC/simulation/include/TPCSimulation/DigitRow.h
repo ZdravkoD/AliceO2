@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -66,17 +66,12 @@ class DigitRow{
 
     /// Fill output TClonesArray
     /// \param output Output container
-    /// \param cru CRU
+    /// \param debug Optional debug output container
+    /// \param cru CRU ID
     /// \param timeBin Time bin
-    /// \param row Row
-    void fillOutputContainer(TClonesArray *output, int cru, int timeBin, int row);
-
-    /// Fill output TClonesArray
-    /// \param output Output container
-    /// \param cru CRU
-    /// \param timeBin Time bin
-    /// \param row Row
-    void fillOutputContainer(TClonesArray *output, int cru, int timeBin, int row, float commonMode);
+    /// \param row Row ID
+    /// \param commonMode Common mode value of that specific ROC
+    void fillOutputContainer(TClonesArray *output, TClonesArray *debug, int cru, int timeBin, int row, float commonMode = 0.f);
 
   private:
     unsigned char          mRow;                ///< Row of the ADC value
@@ -86,8 +81,8 @@ class DigitRow{
 
 inline
 DigitRow::DigitRow(int row, int npads)
-  : mRow(row)
-  , mPads(npads)
+  : mRow(row),
+    mPads(npads)
 {}
 
 inline

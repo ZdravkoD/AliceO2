@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -13,7 +13,9 @@
 /// \author iouri.belikov@cern.ch
 
 #include "ITSReconstruction/CookedTrackerTask.h"
-#include "ITSReconstruction/Cluster.h"
+#include "ITSMFTReconstruction/Cluster.h"
+#include "DetectorsBase/Utils.h"
+#include "MathUtils/Cartesian3D.h"
 
 #include "FairLogger.h"      // for LOG
 #include "FairRootManager.h" // for FairRootManager
@@ -21,7 +23,9 @@
 
 ClassImp(o2::ITS::CookedTrackerTask)
 
-  using namespace o2::ITS;
+using namespace o2::ITS;
+using namespace o2::Base;
+using namespace o2::Base::Utils;
 
 //_____________________________________________________________________
 CookedTrackerTask::CookedTrackerTask(Int_t n) : FairTask("ITSCookedTrackerTask"), mNumOfThreads(n), mClustersArray(nullptr), mTracksArray(nullptr) {}
@@ -56,8 +60,9 @@ InitStatus CookedTrackerTask::Init()
   mTracksArray = new TClonesArray("o2::ITS::CookedTrack");
   mgr->Register("ITSTrack", "ITS", mTracksArray, kTRUE);
 
-  mGeometry.Build(kTRUE);
-  Cluster::setGeom(&mGeometry);
+  GeometryTGeo* geom = GeometryTGeo::Instance();
+  geom->fillMatrixCache( bit2Mask(TransformType::T2GRot) ); // make sure T2GRot matrices are loaded
+  mTracker.setGeometry(geom);
 
   mTracker.setNumberOfThreads(mNumOfThreads);
   

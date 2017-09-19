@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -15,7 +15,6 @@
 #ifndef ALICEO2_TPC_GEMAmplification_H_
 #define ALICEO2_TPC_GEMAmplification_H_
 
-#include "TPCSimulation/Constants.h"
 #include "TPCBase/RandomRing.h"
 
 namespace o2 {

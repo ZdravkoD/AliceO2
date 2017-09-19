@@ -2,7 +2,7 @@
 // distributed under the terms of the GNU General Public License v3 (GPL
 // Version 3), copied verbatim in the file "COPYING".
 //
-// See https://alice-o2.web.cern.ch/ for full licensing information.
+// See http://alice-o2.web.cern.ch/license for full licensing information.
 //
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
@@ -31,7 +31,6 @@ using namespace o2::qc;
 namespace
 {
 shared_ptr<Producer> producer;
-const int NUMBER_OF_IO_THREADS = 1;
 const char* outputAddress;
 mutex keyMutex;
 }
@@ -77,11 +76,11 @@ int main(int argc, char** argv)
     return -1;
   }
 
-  ProducerDevice producerDevice(producerId, NUMBER_OF_IO_THREADS, producer);
+  ProducerDevice producerDevice(producerId, producer);
   producerDevice.CatchSignals();
 
   LOG(INFO) << "PID: " << getpid();
-  LOG(INFO) << "Producer id: " << producerDevice.GetProperty(ProducerDevice::Id, "default_id");
+  LOG(INFO) << "Producer id: " << producerDevice.GetId();
   LOG(INFO) << "Hostname: " << getenv("HOSTNAME");
 
   condition_variable keyCondition;

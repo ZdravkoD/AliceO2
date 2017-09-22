@@ -22,11 +22,12 @@
 #include "DetectorsPassive/Pipe.h"
 #include <Field/MagneticField.h>
 #include <TPCSimulation/Detector.h>
+#include <ITSSimulation/Detector.h>
 #include <EMCALSimulation/Detector.h>
 #include <TOFSimulation/Detector.h>
 #include <TRDSimulation/Detector.h>
 #include <DetectorsPassive/Cave.h>
-#include <DetectorsPassive/FrameStructureRun3.h>
+#include <DetectorsPassive/FrameStructure.h>
 #include <Configuration/SimConfig.h>
 #include "FairRunSim.h"
 #include <algorithm>
@@ -137,6 +138,12 @@ void build_geometry(FairRunSim* run = nullptr)
     run->AddModule(tpc);
   }
 
+  if (isActivated("ITS")){
+    // its
+    auto its = new o2::ITS::Detector("ITS", true);
+    run->AddModule(its);
+  }
+  
   if (isActivated("EMCAL")){
     // emcal
     run->AddModule(new o2::EMCAL::Detector("EMCAL", true));

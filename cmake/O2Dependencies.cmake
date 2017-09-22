@@ -1046,3 +1046,81 @@ NAME
     SYSTEMINCLUDE_DIRECTORIES
     ${ROOT_INCLUDE_DIR}
 )
+
+o2_define_bucket(
+    NAME
+    temp_CXX_bucket
+
+    DEPENDENCIES
+    ExampleModule2_bucket
+    glfw_bucket
+    common_vc_bucket
+    common_boost_bucket
+    ExampleModule1_bucket
+    ExampleModule2_bucket
+    O2Device_bucket
+    O2DeviceApplication_bucket
+    O2FrameworkCore_bucket
+    FrameworkApplication_bucket
+    O2MessageMonitor_bucket
+    TimeFrame_bucket
+    O2DataProcessingApplication_bucket
+    flp2epn_bucket
+    flp2epndistrib_bucket
+    common_math_bucket
+    common_field_bucket
+    configuration_bucket
+    CCDB_bucket
+    root_base_bucket
+    fairroot_base_bucket
+    root_physics_bucket
+    data_format_simulation_bucket
+    detectors_base_bucket
+    itsmft_base_bucket
+    mcsteplogger_bucket
+    itsmft_simulation_bucket
+    itsmft_reconstruction_bucket
+    its_base_bucket
+    its_simulation_bucket
+    its_reconstruction_bucket
+    hitanalysis_bucket
+    QC_base_bucket
+    QC_apps_bucket
+    QC_viewer_bucket
+    QC_merger_bucket
+    QC_producer_bucket
+    QC_test_bucket
+    tpc_base_bucket
+    tpc_simulation_bucket
+    tpc_reconstruction_bucket
+    tpc_calibration_bucket
+    tpc_monitor_bucket
+    generators_base_bucket
+    generators_bucket
+    hough_bucket
+    mft_base_bucket
+    mft_simulation_bucket
+    mft_reconstruction_bucket
+    emcal_base_bucket
+    passive_detector_bucket
+    emcal_simulation_bucket
+    tof_simulation_bucket
+    event_visualisation_bucket
+    trd_simulation_bucket
+    run_bucket
+
+    INCLUDE_DIRECTORIES
+    ${FAIRROOT_INCLUDE_DIR}
+    ${ROOT_INCLUDE_DIR}
+    ${PROTOBUF_INCLUDE_DIR}
+    ${GEANT3_PATH}/include
+    ${CMAKE_SOURCE_DIR}/Detectors/ITSMFT/ITS/reconstruction/include
+    ${CMAKE_SOURCE_DIR}/Detectors/ITSMFT/ITS/reconstruction/src
+    ${CMAKE_SOURCE_DIR}/Detectors/ITSMFT/ITS/reconstruction
+    ${CMAKE_SOURCE_DIR}/Utilities/DataCompression/include
+    ${CMAKE_SOURCE_DIR}/Utilities/DataFlow/include
+    ${CMAKE_SOURCE_DIR}/Utilities/QC/QCProducer/include
+    ${CMAKE_SOURCE_DIR}/Framework/Core/include
+    ${CMAKE_SOURCE_DIR}/Detectors/ITSMFT/ITS/simulation/include
+		${CMAKE_BINARY_DIR}/CCDB
+)

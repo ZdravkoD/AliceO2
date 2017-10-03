@@ -8,8 +8,8 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-/// \file DigitData.cxx
-/// \brief Implementation of the Data Digit
-/// \author Andi Mathis, TU München, andreas.mathis@ph.tum.de
+#include "MathUtils/CachingTF1.h"
 
-#include "TPCReconstruction/DigitData.h"
+using namespace o2::Base;
+
+ClassImp(o2::Base::CachingTF1);

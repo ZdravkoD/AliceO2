@@ -11,7 +11,6 @@
 #include "Field/MagFieldFact.h"
 #include "Field/MagFieldParam.h"
 #include "Field/MagneticField.h"
-#include "FairRunAna.h"
 #include "FairRuntimeDb.h"
 #include "FairField.h"
 
@@ -30,7 +29,8 @@ static MagFieldFact gMagFieldFact;
 
 MagFieldFact::MagFieldFact()
   :FairFieldFactory(),
-   mFieldPar(nullptr)
+   mFieldPar(nullptr),
+   mField()
 {
 	fCreator=this;
 }
@@ -40,22 +40,20 @@ MagFieldFact::~MagFieldFact()
 
 void MagFieldFact::SetParm()
 {
-  FairRunAna *Run = FairRunAna::Instance();
-  FairRuntimeDb *RunDB = Run->GetRuntimeDb();
+  auto RunDB = FairRuntimeDb::instance();
   mFieldPar = (MagFieldParam*) RunDB->getContainer("MagFieldParam");
 }
 
 FairField* MagFieldFact::createFairField()
 { 
-  FairField *fMagneticField=nullptr;
-  
   if ( !mFieldPar ) {
     FairLogger::GetLogger()->Error(MESSAGE_ORIGIN, "No field parameters available");
     return nullptr;
   }
   // since we have just 1 field class, we don't need to consider fFieldPar->GetType()
-  fMagneticField = new MagneticField(*mFieldPar);
-  return fMagneticField;
+  mField = std::make_unique<MagneticField>(*mFieldPar);
+  std::cerr << "creating the field\n";
+  return mField.get();
 }
 
 

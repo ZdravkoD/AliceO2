@@ -18,7 +18,7 @@
 #include <boost/test/unit_test.hpp>
 #include "TClonesArray.h"
 #include "TPCSimulation/DigitContainer.h"
-#include "TPCSimulation/DigitMC.h"
+#include "TPCBase/Digit.h"
 #include "TPCSimulation/DigitMCMetaData.h"
 #include "TPCSimulation/SAMPAProcessing.h"
 #include <memory>
@@ -33,6 +33,7 @@ namespace TPC {
     const SAMPAProcessing& sampa = SAMPAProcessing::instance();
     static FairRootManager *mgr = FairRootManager::Instance();
     DigitContainer digitContainer;
+    o2::dataformats::MCTruthContainer<MCCompLabel> mMCTruthArray;
 
     const std::vector<int> MCevent = {1, 250, 3, 62, 1000};
     const std::vector<int> MCtrack = {22, 3, 4, 23, 523};
@@ -49,16 +50,19 @@ namespace TPC {
 
     /// here the raw pointer is needed owed to the internal handling of the TClonesArrays in FairRoot
     /// Usually the mDigitsArray is what is registered to the FairRootManager
-    auto *mDigitsArray = new TClonesArray("o2::TPC::DigitMC");
-    digitContainer.fillOutputContainer(mDigitsArray, nullptr, 1000);
+    auto *mDigitsArray = new TClonesArray("o2::TPC::Digit");
+    digitContainer.fillOutputContainer(mDigitsArray, mMCTruthArray, nullptr, 1000);
 
     BOOST_CHECK(CRU.size() == mDigitsArray->GetEntriesFast());
 
     int digits = 0;
     for(auto digitsObject : *mDigitsArray) {
-      DigitMC *digit = static_cast<DigitMC *>(digitsObject);
-      BOOST_CHECK(digit->getMCEvent(0) == MCevent[digits]);
-      BOOST_CHECK(digit->getMCTrack(0) == MCtrack[digits]);
+      Digit *digit = static_cast<Digit *>(digitsObject);
+      gsl::span<const o2::MCCompLabel> mcArray = mMCTruthArray.getLabels(digits);
+      for(int j=0; j<static_cast<int>(mcArray.size()); ++j) {
+        BOOST_CHECK(mMCTruthArray.getElement(mMCTruthArray.getMCTruthHeader(digits).index+j).getTrackID() == MCtrack[digits]);
+        BOOST_CHECK(mMCTruthArray.getElement(mMCTruthArray.getMCTruthHeader(digits).index+j).getEventID() == MCevent[digits]);
+      }
       BOOST_CHECK(digit->getCRU() == CRU[digits]);
       BOOST_CHECK(digit->getTimeStamp() == Time[digits]);
       BOOST_CHECK(digit->getRow() == Row[digits]);
@@ -81,6 +85,7 @@ namespace TPC {
     const SAMPAProcessing& sampa = SAMPAProcessing::instance();
     static FairRootManager *mgr = FairRootManager::Instance();
     DigitContainer digitContainer;
+    o2::dataformats::MCTruthContainer<o2::MCCompLabel> mMCTruthArray;
 
     const std::vector<int> MCevent = { 1, 62,  1, 62, 62, 50, 62, 1, 1, 1};
     const std::vector<int> MCtrack = {22, 3, 22, 3, 3, 70, 3, 7, 7, 7};
@@ -102,21 +107,21 @@ namespace TPC {
 
     /// here the raw pointer is needed owed to the internal handling of the TClonesArrays in FairRoot
     /// Usually the mDigitsArray is what is registered to the FairRootManager
-    auto *mDigitsArray = new TClonesArray("o2::TPC::DigitMC");
+    auto *mDigitsArray = new TClonesArray("o2::TPC::Digit");
     auto *mDigitsDebugArray = new TClonesArray("o2::TPC::DigitMCMetaData");
-    digitContainer.fillOutputContainer(mDigitsArray, mDigitsDebugArray, 1000);
+    digitContainer.fillOutputContainer(mDigitsArray, mMCTruthArray, mDigitsDebugArray, 1000);
 
     BOOST_CHECK(mDigitsArray->GetEntriesFast() == 1);
     BOOST_CHECK(mDigitsArray->GetEntriesFast() == mDigitsDebugArray->GetEntriesFast());
 
     int digits = 0;
     for(auto digitsObject : *mDigitsArray) {
-      DigitMC *digit = static_cast<DigitMC *>(digitsObject);
+      Digit *digit = static_cast<Digit *>(digitsObject);
       DigitMCMetaData *digitMetaData = static_cast<DigitMCMetaData *>(mDigitsDebugArray->At(digits));
-      BOOST_CHECK(digit->getMCEvent(0) == MCeventSorted[digits]);
-      for(int j=0; j<digit->getNumberOfMClabels(); ++j) {
-        BOOST_CHECK(digit->getMCEvent(j) == MCeventSorted[j]);
-        BOOST_CHECK(digit->getMCTrack(j) == MCtrackSorted[j]);
+      gsl::span<const o2::MCCompLabel> mcArray = mMCTruthArray.getLabels(digits);
+      for(int j=0; j<static_cast<int>(mcArray.size()); ++j) {
+        BOOST_CHECK(mMCTruthArray.getElement(mMCTruthArray.getMCTruthHeader(digits).index+j).getTrackID() == MCtrackSorted[j]);
+        BOOST_CHECK(mMCTruthArray.getElement(mMCTruthArray.getMCTruthHeader(digits).index+j).getEventID() == MCeventSorted[j]);
       }
       BOOST_CHECK(digit->getCRU() == CRU[digits]);
       BOOST_CHECK(digit->getTimeStamp() == Time[digits]);

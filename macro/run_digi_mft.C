@@ -1,4 +1,4 @@
-#if !defined(__CINT__) || defined(__MAKECINT__)
+#if !defined(__CLING__) || defined(__ROOTCLING__)
 
 #include <sstream>
 
@@ -11,12 +11,14 @@
 #include "FairParRootFileIo.h"
 #include "FairSystemInfo.h"
 
-#include "MFTReconstruction/ClustererTask.h"
+#include "MFTSimulation/DigitizerTask.h"
 
 #endif
 
-void run_clus_mft(Int_t nEvents = 1, Int_t nMuons = 100, TString mcEngine="TGeant3")
+void run_digi_mft(Int_t nEvents = 1, Int_t nMuons = 100, TString mcEngine="TGeant3", Bool_t alp=kTRUE, Float_t rate=50.e3)
 {
+
+  // if rate>0 then continuous simulation for this rate will be performed
 
   FairLogger *logger = FairLogger::GetLogger();
   logger->SetLogVerbosityLevel("LOW");
@@ -24,12 +26,12 @@ void run_clus_mft(Int_t nEvents = 1, Int_t nMuons = 100, TString mcEngine="TGean
 
   // Input file name
   char filein[100];
-  sprintf(filein, "AliceO2_%s.digi_%iev_%imu.root", mcEngine.Data(), nEvents, nMuons);
+  sprintf(filein, "AliceO2_%s.mc_%iev_%imu.root", mcEngine.Data(), nEvents, nMuons);
   TString inFile = filein;
 
   // Output file name
   char fileout[100];
-  sprintf(fileout, "AliceO2_%s.clus_%iev_%imu.root", mcEngine.Data(), nEvents, nMuons);
+  sprintf(fileout, "AliceO2_%s.digi_%iev_%imu.root", mcEngine.Data(), nEvents, nMuons);
   TString outFile = fileout;
 
   // Parameter file name
@@ -45,16 +47,21 @@ void run_clus_mft(Int_t nEvents = 1, Int_t nMuons = 100, TString mcEngine="TGean
   FairFileSource *fFileSource = new FairFileSource(inFile);
   fRun->SetSource(fFileSource);
   fRun->SetOutputFile(outFile);
-  
+
+  if (rate>0) fFileSource->SetEventMeanTime(1.e9/rate); //is in us
+        
   // Setup Runtime DB
   FairRuntimeDb* rtdb = fRun->GetRuntimeDb();
   FairParRootFileIo* parInput1 = new FairParRootFileIo();
   parInput1->open(parFile);
   rtdb->setFirstInput(parInput1);
 
-  // Setup clusterizer
-  o2::MFT::ClustererTask *clus = new o2::MFT::ClustererTask;
-  fRun->AddTask(clus);
+  // Setup digitizer
+  // Call o2::MFT::DigitizerTask(kTRUE) to activate the ALPIDE simulation
+  o2::MFT::DigitizerTask *digi = new o2::MFT::DigitizerTask(alp);
+  digi->setContinuous(rate>0);
+  digi->setFairTimeUnitInNS(1.0); // tell in which units (wrt nanosecond) FAIT timestamps are
+  fRun->AddTask(digi);
   
   fRun->Init();
   
@@ -88,4 +95,5 @@ void run_clus_mft(Int_t nEvents = 1, Int_t nMuons = 100, TString mcEngine="TGean
 	    << "s" << endl << endl;
 
 }
+
 

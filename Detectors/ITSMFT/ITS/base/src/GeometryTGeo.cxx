@@ -15,10 +15,10 @@
 
 // ATTENTION: In opposite to old AliITSgeomTGeo, all indices start from 0, not from 1!!!
 
+#include "ITSMFTBase/SegmentationAlpide.h"
 #include "ITSBase/GeometryTGeo.h"
 #include "DetectorsBase/GeometryManager.h"
 #include "MathUtils/Cartesian3D.h"
-#include "ITSMFTBase/SegmentationPixel.h"
 
 #include "FairLogger.h" // for LOG
 
@@ -40,12 +40,12 @@
 #include <cstdio>  // for snprintf, NULL, printf
 #include <cstring> // for strstr, strlen
 
-using o2::ITSMFT::Segmentation;
-using o2::ITSMFT::SegmentationPixel;
 using namespace TMath;
 using namespace o2::ITS;
 using namespace o2::Base;
 using namespace o2::Base::Utils;
+
+using Segmentation = o2::ITSMFT::SegmentationAlpide;
 
 ClassImp(o2::ITS::GeometryTGeo);
 
@@ -59,11 +59,10 @@ std::string GeometryTGeo::sModuleName        = "ITSUModule";     ///< Module nam
 std::string GeometryTGeo::sChipName          = "ITSUChip";       ///< Chip name
 std::string GeometryTGeo::sSensorName        = "ITSUSensor";     ///< Sensor name
 std::string GeometryTGeo::sWrapperVolumeName = "ITSUWrapVol";    ///< Wrapper volume name
-std::string GeometryTGeo::sSegmentationFileName = "itsSegmentations.root"; ///< file name for segmentations
 
 
 //__________________________________________________________________________
-GeometryTGeo::GeometryTGeo(bool build, bool loadSegmentations, int loadTrans)
+GeometryTGeo::GeometryTGeo(bool build, int loadTrans)
   : o2::ITSMFT::GeometryTGeo(DetID::ITS)
 {
   // default c-tor, if build is true, the structures will be filled and the transform matrices
@@ -77,7 +76,7 @@ GeometryTGeo::GeometryTGeo(bool build, bool loadSegmentations, int loadTrans)
     mLayerToWrapper[i] = -1;
   }
   if (build) {
-    Build(loadSegmentations,loadTrans);
+    Build(loadTrans);
   }
 }
 
@@ -276,6 +275,13 @@ const char* GeometryTGeo::composeSymNameChip(int lr, int sta, int substave, int 
 //__________________________________________________________________________
 TGeoHMatrix* GeometryTGeo::extractMatrixSensor(int index) const
 {
+  // extract matrix transforming from the PHYSICAL sensor frame to global one
+  // Note, the if the effective sensitive layer thickness is smaller than the
+  // total physical sensor tickness, this matrix is biased and connot be used
+  // directly for transformation from sensor frame to global one.
+  //
+  // Therefore we need to add a shift
+
   int lay, stav, sstav, mod, chipInMod;
   getChipId(index, lay, stav, sstav, mod, chipInMod);
 
@@ -314,11 +320,17 @@ TGeoHMatrix* GeometryTGeo::extractMatrixSensor(int index) const
   //  mat->Print();
   // Restore the modeler state.
   gGeoManager->PopPath();
+
+  // account for the difference between sensitive layer and physical sensor ticknesses
+  static TGeoTranslation tra(0.,0.5*(Segmentation::SensorThickness-Segmentation::SensLayerThickness),0.);
+
+  matTmp *= tra;
+  
   return &matTmp;
 }
 
 //__________________________________________________________________________
-void GeometryTGeo::Build(bool loadSegmentations, int loadTrans)
+void GeometryTGeo::Build(int loadTrans)
 {
   if ( isBuilt() ) {
     LOG(WARNING) << "Already built" << FairLogger::endl;
@@ -343,12 +355,10 @@ void GeometryTGeo::Build(bool loadSegmentations, int loadTrans)
   mNumberOfChipsPerHalfStave.resize(mNumberOfLayers);
   mNumberOfChipsPerStave.resize(mNumberOfLayers);
   mNumberOfChipsPerLayer.resize(mNumberOfLayers);
-  mLayerChipType.resize(mNumberOfLayers);
   mLastChipIndex.resize(mNumberOfLayers);
   int numberOfChips = 0;
 
   for (int i = 0; i < mNumberOfLayers; i++) {
-    mLayerChipType[i] = extractLayerChipType(i);
     mNumberOfStaves[i] = extractNumberOfStaves(i);
     mNumberOfHalfStaves[i] = extractNumberOfHalfStaves(i);
     mNumberOfModules[i] = extractNumberOfModules(i);
@@ -363,10 +373,7 @@ void GeometryTGeo::Build(bool loadSegmentations, int loadTrans)
   fillTrackingFramesCache();
   //
   fillMatrixCache(loadTrans);
-  
-  if (loadSegmentations) { // fetch segmentations
-    SegmentationPixel::loadSegmentations(&mSegmentations, getITSSegmentationFileName());
-  }
+
 }
 
 //__________________________________________________________________________
@@ -376,7 +383,7 @@ void GeometryTGeo::fillMatrixCache(int mask)
   //  
   if (mSize<1) {    
     LOG(WARNING) << "The method Build was not called yet" << FairLogger::endl;
-    Build(true,mask);
+    Build(mask);
     return;
   }
   
@@ -386,9 +393,10 @@ void GeometryTGeo::fillMatrixCache(int mask)
     LOG(INFO) << "Loading ITS L2G matrices from TGeo" <<  FairLogger::endl;
     auto& cacheL2G = getCacheL2G();
     cacheL2G.setSize(mSize);
+
     for (int i=0;i<mSize;i++) {
-      TGeoHMatrix* hm = extractMatrixSensor(i);
-      cacheL2G.setMatrix( hm ? Mat3D(*hm) : Mat3D(), i);
+      TGeoHMatrix *hm = extractMatrixSensor(i);
+      cacheL2G.setMatrix( Mat3D( *hm ) , i);
     }
   } 
 
@@ -409,6 +417,7 @@ void GeometryTGeo::fillMatrixCache(int mask)
     LOG(INFO) << "Loading ITS T2G matrices from TGeo" <<  FairLogger::endl;
     auto& cacheT2G = getCacheT2G();
     cacheT2G.setSize(mSize);
+    
     for (int i=0;i<mSize;i++) {
       TGeoHMatrix& mat = createT2LMatrix(i);
       mat.MultiplyLeft( extractMatrixSensor(i) );
@@ -674,15 +683,6 @@ int GeometryTGeo::extractLayerChipType(int lay) const
 }
 
 //__________________________________________________________________________
-UInt_t GeometryTGeo::composeChipTypeId(UInt_t segmId)
-{
-  if (segmId >= kMaxSegmPerChipType) {
-    LOG(FATAL) << "Id=" << segmId << " is >= max.allowed " << kMaxSegmPerChipType << FairLogger::endl;
-  }
-  return segmId + kChipTypePix * kMaxSegmPerChipType;
-}
-
-//__________________________________________________________________________
 void GeometryTGeo::Print(Option_t*) const
 {
   printf("NLayers:%d NChips:%d\n", mNumberOfLayers, getNumberOfChips());
@@ -691,10 +691,10 @@ void GeometryTGeo::Print(Option_t*) const
   for (int i = 0; i < mNumberOfLayers; i++) {
     printf(
       "Lr%2d\tNStav:%2d\tNChips:%2d "
-      "(%dx%-2d)\tNMod:%d\tNSubSt:%d\tNSt:%3d\tChipType:%3d\tChip#:%5d:%-5d\tWrapVol:%d\n",
+      "(%dx%-2d)\tNMod:%d\tNSubSt:%d\tNSt:%3d\tChip#:%5d:%-5d\tWrapVol:%d\n",
       i, mNumberOfStaves[i], mNumberOfChipsPerModule[i], mNumberOfChipRowsPerModule[i],
       mNumberOfChipRowsPerModule[i] ? mNumberOfChipsPerModule[i] / mNumberOfChipRowsPerModule[i] : 0,
-      mNumberOfModules[i], mNumberOfHalfStaves[i], mNumberOfStaves[i], mLayerChipType[i], getFirstChipIndex(i),
+      mNumberOfModules[i], mNumberOfHalfStaves[i], mNumberOfStaves[i], getFirstChipIndex(i),
       getLastChipIndex(i), mLayerToWrapper[i]);
   }
 }
@@ -706,6 +706,7 @@ void GeometryTGeo::extractSensorXAlpha(int isn, float &x, float &alp)
   // (i.e. phi of the tracking frame alpha and X of the sensor in this frame)
   double locA[3] = {-100.,0.,0.}, locB[3] = {100.,0.,0.}, gloA[3], gloB[3];
   const TGeoHMatrix* matL2G = extractMatrixSensor(isn);
+
   matL2G->LocalToMaster(locA, gloA);
   matL2G->LocalToMaster(locB, gloB);
   double dx = gloB[0] - gloA[0], dy = gloB[1] - gloA[1];
@@ -727,7 +728,7 @@ TGeoHMatrix& GeometryTGeo::createT2LMatrix(int isn)
   t2l.Clear();
   t2l.RotateZ(alp * RadToDeg()); // rotate in direction of normal to the sensor plane
   const TGeoHMatrix* matL2G = extractMatrixSensor(isn);
-  t2l.MultiplyLeft(&matL2G->Inverse());
+  t2l.MultiplyLeft( &matL2G->Inverse() );
   return t2l;
 }
 

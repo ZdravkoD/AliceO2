@@ -376,10 +376,12 @@ o2_define_bucket(
     fairroot_base_bucket
     root_physics_bucket
     common_math_bucket
+    detectors_base_bucket
     RIO
 
     INCLUDE_DIRECTORIES
     ${CMAKE_SOURCE_DIR}/Common/MathUtils/include
+    ${CMAKE_SOURCE_DIR}/Detectors/Base/include
     ${MS_GSL_INCLUDE_DIR}
 )
 
@@ -532,11 +534,17 @@ o2_define_bucket(
 
     DEPENDENCIES
     ITSSimulation
-
+    
     INCLUDE_DIRECTORIES
     ${FAIRROOT_INCLUDE_DIR}
     ${CMAKE_SOURCE_DIR}/Detectors/ITSMFT/ITS/base/include
-)
+    ${CMAKE_SOURCE_DIR}/Detectors/ITSMFT/common/simulation/include
+    ${CMAKE_SOURCE_DIR}/DataFormats/simulation/include
+    ${CMAKE_SOURCE_DIR}/Common/MathUtils/include
+
+    SYSTEMINCLUDE_DIRECTORIES
+    ${Boost_INCLUDE_DIR}
+    )
 
 o2_define_bucket(
     NAME
@@ -985,6 +993,7 @@ o2_define_bucket(
     DetectorsPassive
     TPCSimulation
     ITSSimulation
+    MFTSimulation
     TRDSimulation
     EMCALSimulation
     TOFSimulation

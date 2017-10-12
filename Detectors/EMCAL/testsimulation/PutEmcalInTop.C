@@ -1,4 +1,4 @@
-#if (!defined(__CINT__) && !defined(__CLING__)) || defined(__MAKECINT__)
+#if !defined(__CLING__) || defined(__ROOTCLING__)
   #include "TGeoManager.h"
   #include "TString.h"
   #include "TSystem.h"
@@ -32,7 +32,7 @@ void PutEmcalInTop() {
   cave->SetGeometryFileName("cave.geo");
   run->AddModule(cave);
 
-  o2::EMCAL::Detector *emcdet = new o2::EMCAL::Detector("EMCAL", kTRUE);
+  o2::EMCAL::Detector *emcdet = new o2::EMCAL::Detector(kTRUE);
   run->AddModule(emcdet);
 
   run->Init();

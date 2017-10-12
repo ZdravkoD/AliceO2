@@ -1,4 +1,4 @@
-#if (!defined(__CLING__) && !defined(__CINT__)) || defined(__MAKECINT__)
+#if !defined(__CLING__) || defined(__ROOTCLING__)
   #include <TSystem.h>
   #include <TMath.h>
   #include <TString.h>
@@ -80,7 +80,7 @@ void run_sim_emcal(Int_t nEvents = 1, TString mcEngine = "TGeant3")
   o2::field::MagneticField field("field","field +5kG");
   run->SetField(&field);
 
-  o2::EMCAL::Detector* emcal = new o2::EMCAL::Detector("EMCAL", kTRUE);
+  o2::EMCAL::Detector* emcal = new o2::EMCAL::Detector(kTRUE);
   run->AddModule(emcal);
 
   // Create PrimaryGenerator

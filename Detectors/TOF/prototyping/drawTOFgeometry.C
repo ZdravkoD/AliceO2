@@ -1,4 +1,4 @@
-#if (!defined(__CINT__) && !defined(__CLING__)) || defined(__MAKECINT__)
+#if !defined(__CLING__) || defined(__ROOTCLING__)
 #include "DetectorsPassive/Cave.h"
 #include "DetectorsPassive/FrameStructure.h"
 #include "FairRunSim.h"
@@ -41,7 +41,7 @@ void drawTOFgeometry()
   o2::passive::FrameStructure* frame = new o2::passive::FrameStructure("Frame", "Frame");
   run->AddModule(frame);
 
-  o2::tof::Detector* tof = new o2::tof::Detector("TOF", kTRUE);
+  o2::tof::Detector* tof = new o2::tof::Detector(kTRUE);
   run->AddModule(tof);
 
   run->Init();

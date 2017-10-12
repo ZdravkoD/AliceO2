@@ -1,7 +1,7 @@
 /// \file CheckDigits.C
 /// \brief Simple macro to check ITSU digits
 
-#if (!defined(__CINT__) && !defined(__CLING__)) || defined(__MAKECINT__)
+#if !defined(__CLING__) || defined(__ROOTCLING__)
   #include <TFile.h>
   #include <TTree.h>
   #include <TClonesArray.h>
@@ -11,22 +11,23 @@
   #include <TString.h>
 
   #include "DetectorsBase/Utils.h"
-  #include "ITSMFTBase/SegmentationPixel.h"
+  #include "ITSMFTBase/SegmentationAlpide.h"
   #include "ITSMFTBase/Digit.h"
   #include "ITSMFTSimulation/Hit.h"
   #include "ITSBase/GeometryTGeo.h"
+  #include <vector>
 #endif
 
 using namespace o2::Base;
 
 void CheckDigits(Int_t nEvents = 10, TString mcEngine = "TGeant3") {
-  using o2::ITSMFT::SegmentationPixel;
+  using o2::ITSMFT::SegmentationAlpide;
   using o2::ITSMFT::Digit;
   using o2::ITSMFT::Hit;
   using namespace o2::ITS;
 
   TFile *f=TFile::Open("CheckDigits.root","recreate");
-  TNtuple *nt=new TNtuple("ntd","digit ntuple","x:y:z:dx:dz");
+  TNtuple *nt=new TNtuple("ntd","digit ntuple","id:x:y:z:rowD:colD:rowH:colH:xlH:zlH:xlcH:zlcH:dx:dz");
 
   char filename[100];
 
@@ -38,14 +39,14 @@ void CheckDigits(Int_t nEvents = 10, TString mcEngine = "TGeant3") {
   auto *gman = o2::ITS::GeometryTGeo::Instance();
   gman->fillMatrixCache( Utils::bit2Mask(TransformType::L2G) );
   
-  SegmentationPixel *seg = (SegmentationPixel*)gman->getSegmentationById(0);
+  SegmentationAlpide seg;
 
   // Hits
   sprintf(filename, "AliceO2_%s.mc_%i_event.root", mcEngine.Data(), nEvents);
   TFile *file0 = TFile::Open(filename);
   TTree *hitTree=(TTree*)gFile->Get("o2sim");
-  TClonesArray hitArr("o2::ITSMFT::Hit"), *phitArr(&hitArr);
-  hitTree->SetBranchAddress("ITSHit",&phitArr);
+  std::vector<o2::ITSMFT::Hit> *hitArray = nullptr;
+  hitTree->SetBranchAddress("ITSHit", &hitArray);
 
   // Digits
   sprintf(filename, "AliceO2_%s.digi_%i_event.root", mcEngine.Data(), nEvents);
@@ -57,17 +58,19 @@ void CheckDigits(Int_t nEvents = 10, TString mcEngine = "TGeant3") {
   int nevD = digTree->GetEntries(); // digits in cont. readout may be grouped as few events per entry
   int nevH = hitTree->GetEntries(); // hits are stored as one event per entry
   int lastReadHitEv = -1;
+
+  int ndr=0,ndf=0;
   
   for (int iev = 0;iev<nevD; iev++) {
 
     digTree->GetEvent(iev);
     Int_t nd=digArr.GetEntriesFast();
 
-    while(nd--) {
+    while(nd--) {      
       Digit *d=(Digit *)digArr.UncheckedAt(nd);
       Int_t ix=d->getRow(), iz=d->getColumn();
-      Float_t x,z; 
-      seg->detectorToLocal(ix,iz,x,z);
+      Float_t x=0.f,z=0.f; 
+      seg.detectorToLocal(ix,iz,x,z);
       const Point3D<float> locD(x,0.,z);
       
       Int_t chipID=d->getChipIndex();
@@ -76,6 +79,7 @@ void CheckDigits(Int_t nEvents = 10, TString mcEngine = "TGeant3") {
       int ievH = lab.getEventID();
 
       if (trID>=0) { // not a noise
+	ndr++;
 	const auto gloD = gman->getMatrixL2G(chipID)(locD); // convert to global
 	float dx=0., dz=0.;
 	
@@ -83,19 +87,27 @@ void CheckDigits(Int_t nEvents = 10, TString mcEngine = "TGeant3") {
 	  hitTree->GetEvent(ievH);
 	  lastReadHitEv = ievH;
 	}
-	Int_t nh=hitArr.GetEntriesFast();
-
-	for (Int_t i=0; i<nh; i++) {
-	  Hit *p=(Hit *)hitArr.UncheckedAt(i);
-	  if (p->GetDetectorID() != chipID) continue; 
-	  if (p->GetTrackID() != lab) continue;
-	  auto locH    = gman->getMatrixL2G(chipID)^( p->GetPos() );  // inverse conversion from global to local
-	  auto locHsta = gman->getMatrixL2G(chipID)^( p->GetPosStart() );
+	bool ok = false;
+	for (auto& p : *hitArray) {
+	  if (p.GetDetectorID() != chipID) continue; 
+	  if (p.GetTrackID() != trID) continue;
+	  auto locH    = gman->getMatrixL2G(chipID)^( p.GetPos() );  // inverse conversion from global to local
+	  auto locHsta = gman->getMatrixL2G(chipID)^( p.GetPosStart() );
 	  locH.SetXYZ( 0.5*(locH.X()+locHsta.X()),0.5*(locH.Y()+locHsta.Y()),0.5*(locH.Z()+locHsta.Z()) );
+	  int row,col;
+	  float xlc,zlc;
+	  seg.localToDetector(locH.X(),locH.Z(), row, col);
+	  seg.detectorToLocal(row,col,xlc,zlc);
 	  //
-	  nt->Fill(gloD.X(),gloD.Y(),gloD.Z(),locH.X()-locD.X(),locH.Z()-locD.Z());
+	  nt->Fill(chipID,gloD.X(),gloD.Y(),gloD.Z(),ix,iz,row,col,
+		   locH.X(),locH.Z(), xlc,zlc,  locH.X()-locD.X(),locH.Z()-locD.Z());
+	  ok = true;
+	  ndf++;
 	  break;
-	}      
+	}
+	if (!ok) {
+	  printf("did not find hit for digit %d in ev %d: MCEv:%d MCTrack %d\n",nd,iev,ievH,trID);
+	}
       }
     }
   }
@@ -103,4 +115,5 @@ void CheckDigits(Int_t nEvents = 10, TString mcEngine = "TGeant3") {
   new TCanvas; nt->Draw("dx:dz");
   f->Write();
   f->Close();
+  printf("read %d filled %d\n",ndr,ndf);
 }

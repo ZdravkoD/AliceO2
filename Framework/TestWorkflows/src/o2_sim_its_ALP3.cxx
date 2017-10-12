@@ -22,8 +22,6 @@
 
 #include "DetectorsPassive/Cave.h"
 #include "Field/MagneticField.h"
-#include "ITSBase/GeometryTGeo.h"
-#include "ITSMFTBase/SegmentationPixel.h"
 #include "ITSSimulation/Detector.h"
 
 using namespace o2::framework;
@@ -92,7 +90,7 @@ DataProcessorSpec sim_its_ALP3() {
         o2::field::MagneticField field("field","field +5kG");
         run->SetField(&field);
 
-        o2::ITS::Detector* its = new o2::ITS::Detector("ITS", kTRUE);
+        o2::ITS::Detector* its = new o2::ITS::Detector(kTRUE);
         run->AddModule(its);
 
         // Create PrimaryGenerator

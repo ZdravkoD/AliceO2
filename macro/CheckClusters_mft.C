@@ -1,7 +1,7 @@
 /// \file CheckDigits.C
 /// \brief Simple macro to check ITSU clusters
 
-#if !defined(__CINT__) || defined(__MAKECINT__)
+#if !defined(__CLING__) || defined(__ROOTCLING__)
 
 #include <TFile.h>
 #include <TTree.h>
@@ -23,7 +23,7 @@
 using namespace o2::Base;
 using o2::ITSMFT::Cluster;
 
-void CheckClusters(Int_t nEvents = 1, Int_t nMuons = 10, TString mcEngine = "TGeant3") 
+void CheckClusters_mft(Int_t nEvents = 1, Int_t nMuons = 10, TString mcEngine = "TGeant3") 
 {
 
   using o2::ITSMFT::Hit;

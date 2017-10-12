@@ -8,8 +8,8 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-/// \file UpgradeSegmentationPixel.h
-/// \brief Definition of the UpgradeSegmentationPixel class
+/// \file Detector.h
+/// \brief Definition of the Detector class
 
 #ifndef ALICEO2_BASE_DETECTOR_H_
 #define ALICEO2_BASE_DETECTOR_H_
@@ -23,6 +23,7 @@
 #include <cxxabi.h>
 #include <typeinfo>
 #include <type_traits>
+#include <string>
 
 namespace o2 {
 namespace Base {
@@ -33,7 +34,7 @@ class Detector : public FairDetector
 {
 
   public:
-    Detector(const char *name, Bool_t Active, Int_t DetId = 0);
+    Detector(const char* name, Bool_t Active);
 
     /// Default Constructor
     Detector();
@@ -120,6 +121,12 @@ class Detector : public FairDetector
       }
     }
 
+    // return the name augmented by extention
+    std::string addNameTo(const char* ext) {
+      std::string s(GetName());
+      return s+ext;
+    }
+    
     // static and reusable service function to set tracking parameters in relation to field
     // returns global integration mode (inhomogenety) for the field and the max field value
     // which is required for media creation

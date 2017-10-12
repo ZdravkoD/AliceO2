@@ -11,7 +11,6 @@
 #include <algorithm>
 #include <iomanip>
 
-#include "TClonesArray.h"
 #include "TGeoManager.h"
 #include "TGeoVolume.h"
 #include "TVirtualMC.h"
@@ -35,12 +34,12 @@ using namespace o2::EMCAL;
 
 ClassImp(Detector);
 
-Detector::Detector(const char* Name, Bool_t Active)
-  : o2::Base::Detector(Name, Active),
+Detector::Detector(Bool_t active)
+  : o2::Base::Detector("EMC", active),
     mBirkC0(0),
     mBirkC1(0.),
     mBirkC2(0.),
-    mPointCollection(new TClonesArray(o2::Base::getTClArrTrueTypeName<Hit>().c_str())),
+    mHits(new std::vector<Hit>),
     mGeometry(nullptr),
     mCurrentTrackID(-1),
     mCurrentCellID(-1),
@@ -161,8 +160,10 @@ Bool_t Detector::ProcessHits(FairVolume* v)
     mCurrentHit =
       AddHit(partID, parent, 0, estart, detID, Point3D<float>(float(posX), float(posY), float(posZ)),
              Vector3D<float>(float(momX), float(momY), float(momZ)), time, lightyield);
+    static_cast<o2::Data::Stack*>(mcapp->GetStack())->AddPoint(GetDetId());
     mCurrentTrackID = partID;
     mCurrentCellID = detID;
+    
   } else {
     // std::cout << "Adding energy to the current hit\n";
     mCurrentHit->SetEnergyLoss(mCurrentHit->GetEnergyLoss() + lightyield);
@@ -177,11 +178,8 @@ Hit* Detector::AddHit(Int_t trackID, Int_t parentID, Int_t primary, Double_t ini
   LOG(DEBUG4) << "Adding hit for track " << trackID << " (mother " << parentID << ") with position (" << pos.X() << ", "
               << pos.Y() << ", " << pos.Z() << ") and momentum (" << mom.X() << ", " << mom.Y() << ", " << mom.Z()
               << ")  with energy " << initialEnergy << " loosing " << eLoss << std::endl;
-
-  TClonesArray& refCollection = *mPointCollection;
-
-  Int_t size = refCollection.GetEntriesFast();
-  return new (refCollection[size]) Hit(primary, trackID, parentID, detID, initialEnergy, pos, mom, time, eLoss);
+  mHits->emplace_back(primary, trackID, parentID, detID, initialEnergy, pos, mom, time, eLoss);
+  return &(mHits->back());
 }
 
 Double_t Detector::CalculateLightYield(Double_t energydeposit, Double_t tracklength, Int_t charge) const
@@ -207,19 +205,21 @@ Double_t Detector::CalculateLightYield(Double_t energydeposit, Double_t tracklen
   return energydeposit / (1. + birkC1Mod * dedxcm + mBirkC2 * dedxcm * dedxcm);
 }
 
-void Detector::Register() { FairRootManager::Instance()->Register("EMCALHit", "EMCAL", mPointCollection, kTRUE); }
+void Detector::Register()
+{
+  FairRootManager::Instance()->RegisterAny(addNameTo("Hit").data(), mHits, kTRUE);
+}
 
 TClonesArray* Detector::GetCollection(Int_t iColl) const
 {
-  if (iColl == 0)
-    return mPointCollection;
+  LOG(WARNING) << "GetCollection interface no longer supported" << FairLogger::endl;
   return nullptr;
 }
 
 void Detector::Reset()
 {
   LOG(DEBUG) << "Cleaning EMCAL hits ...\n";
-  mPointCollection->Clear();
+  mHits->clear();
   mCurrentTrackID = -1;
   mCurrentCellID = -1;
   mCurrentHit = nullptr;

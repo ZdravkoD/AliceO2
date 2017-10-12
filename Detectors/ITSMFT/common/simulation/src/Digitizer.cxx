@@ -13,7 +13,6 @@
 
 #include "SimulationDataFormat/MCCompLabel.h"
 #include "ITSMFTBase/Digit.h"
-#include "ITSMFTBase/SegmentationPixel.h"
 #include "ITSMFTSimulation/Hit.h"
 #include "ITSMFTSimulation/Digitizer.h"
 #include "MathUtils/Cartesian3D.h"
@@ -27,8 +26,6 @@ ClassImp(o2::ITSMFT::Digitizer)
 
 using o2::ITSMFT::Hit;
 using o2::ITSMFT::Chip;
-using o2::ITSMFT::SimulationAlpide;
-using o2::ITSMFT::SegmentationPixel;
 using o2::ITSMFT::Digit;
 
 using namespace o2::ITSMFT;
@@ -38,22 +35,28 @@ using namespace o2::Base;
 //_______________________________________________________________________
 void Digitizer::init()
 {
-  
+
   const Int_t numOfChips = mGeometry->getNumberOfChips();
 
+  if (mParams.getHit2DigitsMethod() == DigiParams::p2dCShape && !mParams.getAlpSimResponse()) {
+    mAlpSimResp = std::make_unique<o2::ITSMFT::AlpideSimResponse>();
+    mAlpSimResp->initData();
+    mParams.setAlpSimResponse(mAlpSimResp.get());
+  }
+    
   for (Int_t i = 0; i < numOfChips; i++) {
     mSimulations.emplace_back(&mParams, i, &mGeometry->getMatrixL2G(i));
   }
 }
 
+// this version should be deprecated once we are not using TClonesArrays anymore
 //_______________________________________________________________________
 void Digitizer::process(TClonesArray* hits, TClonesArray* digits)
 {
   // digitize single event
-  
-  const Int_t numOfChips = mGeometry->getNumberOfChips();  
-  const SegmentationPixel* seg = (SegmentationPixel*)mGeometry->getSegmentationById(0);
-  
+
+  const Int_t numOfChips = mGeometry->getNumberOfChips();
+
   // estimate the smalles RO Frame this event may have
   double hTime0 = mEventTime - mParams.getTimeOffset();
   if (hTime0 > UINT_MAX) {
@@ -62,8 +65,67 @@ void Digitizer::process(TClonesArray* hits, TClonesArray* digits)
 		 << mParams.getTimeOffset() << FairLogger::endl;
     return;
   }
+
+  if (hTime0<0) hTime0 = 0.;
+  UInt_t minNewROFrame = static_cast<UInt_t>(hTime0/mParams.getROFrameLenght());
+
+  LOG(INFO) << "Digitizing ITS event at time " << mEventTime
+	    << " (TOffset= " << mParams.getTimeOffset() << " ROFrame= " << minNewROFrame << ")"
+	    << " cont.mode: " << isContinuous() << " current Min/Max RO Frames "
+	    << mROFrameMin << "/" << mROFrameMax << FairLogger::endl ;
+
+  if (mParams.isContinuous() && minNewROFrame>mROFrameMin) {
+    // if there are already digits cached for previous RO Frames AND the new event
+    // cannot contribute to these digits, move them to the output container
+    if (mROFrameMax<minNewROFrame) mROFrameMax = minNewROFrame-1;
+    for (auto rof=mROFrameMin; rof<minNewROFrame; rof++) {
+      fillOutputContainer(digits, rof);
+    }
+    //    fillOutputContainer(digits, minNewROFrame-1);
+  }
+
+  // accumulate hits for every chip
+  TIter nextPoint(hits);
+  Hit* hit = nullptr;
+  while ( (hit = (Hit*)nextPoint()) ) {
+
+    // RS: ATTENTION: this is just a trick until we clarify how the hits from different source are
+    // provided and identified. At the moment we just create a combined identifier from eventID
+    // and sourceID and store it TEMPORARILY in the cached Point's TObject UniqueID
+    hit->SetSrcEvID(mCurrSrcID,mCurrEvID);
+    mSimulations[hit->GetDetectorID()].InsertHit(hit);
+  }
+
+  // Convert hits to digits
+  for (auto &simulation : mSimulations) {
+    simulation.Hits2Digits(mEventTime, mROFrameMin, mROFrameMax);
+    simulation.ClearHits();
+  }
+
+  // in the triggered mode store digits after every MC event
+  if (!mParams.isContinuous()) {
+    fillOutputContainer(digits, mROFrameMax);
+  }
+}
+
+//_______________________________________________________________________
+void Digitizer::process(std::vector<Hit>* hits, TClonesArray* digits)
+{
+  // digitize single event
   
-  UInt_t minNewROFrame = static_cast<UInt_t>(hTime0)/mParams.getROFrameLenght();
+  const Int_t numOfChips = mGeometry->getNumberOfChips();  
+
+  // estimate the smalles RO Frame this event may have
+  double hTime0 = mEventTime - mParams.getTimeOffset();
+  if (hTime0 > UINT_MAX) {
+    LOG(WARNING) << "min Hit RO Frame undefined: time: " << hTime0 << " is in far future: "
+		 << " EventTime: " << mEventTime << " TimeOffset: "
+		 << mParams.getTimeOffset() << FairLogger::endl;
+    return;
+  }
+
+  if (hTime0<0) hTime0 = 0.;
+  UInt_t minNewROFrame = static_cast<UInt_t>(hTime0/mParams.getROFrameLenght());
 
   LOG(INFO) << "Digitizing ITS event at time " << mEventTime
 	    << " (TOffset= " << mParams.getTimeOffset() << " ROFrame= " << minNewROFrame << ")"
@@ -81,20 +143,17 @@ void Digitizer::process(TClonesArray* hits, TClonesArray* digits)
   }
   
   // accumulate hits for every chip
-  TIter nextPoint(hits);
-  Hit* hit = nullptr;
-  while ( (hit = (Hit*)nextPoint()) ) {
-    
+  for(auto& hit : *hits) {
     // RS: ATTENTION: this is just a trick until we clarify how the hits from different source are
     // provided and identified. At the moment we just create a combined identifier from eventID
     // and sourceID and store it TEMPORARILY in the cached Point's TObject UniqueID  
-    hit->SetSrcEvID(mCurrSrcID,mCurrEvID); 
-    mSimulations[hit->GetDetectorID()].InsertHit(hit);
+    hit.SetSrcEvID(mCurrSrcID,mCurrEvID); 
+    mSimulations[hit.GetDetectorID()].InsertHit(&hit);
   }
     
   // Convert hits to digits  
   for (auto &simulation : mSimulations) {
-    simulation.Hits2Digits(seg, mEventTime, mROFrameMin, mROFrameMax);
+    simulation.Hits2Digits(mEventTime, mROFrameMin, mROFrameMax);
     simulation.ClearHits();
   }
 
@@ -104,13 +163,14 @@ void Digitizer::process(TClonesArray* hits, TClonesArray* digits)
   }
 }
 
+
 //_______________________________________________________________________
 void Digitizer::setEventTime(double t)
 {
   // assign event time, it should be in a strictly increasing order
   // convert to ns
   t *= mCoeffToNanoSecond;
-  
+
   if (t<mEventTime && mParams.isContinuous()) {
     LOG(FATAL) << "New event time (" << t << ") is < previous event time (" << mEventTime << ")" << FairLogger::endl;
   }
@@ -133,13 +193,12 @@ void Digitizer::fillOutputContainer(TClonesArray* digits, UInt_t maxFrame)
 {
   // fill output with digits ready to be stored, generating the noise beforehand
   if (maxFrame>mROFrameMax) maxFrame = mROFrameMax;
-  const SegmentationPixel* seg = (SegmentationPixel*)mGeometry->getSegmentationById(0);
 
   LOG(INFO) << "Filling ITS digits output for RO frames " << mROFrameMin << ":" << maxFrame << FairLogger::endl ;
 
   for (auto &simulation : mSimulations) {
     // add the random noise to all ROFrame being stored
-    simulation.addNoise(seg,mROFrameMin,maxFrame);
+    simulation.addNoise(mROFrameMin,maxFrame);
   }
 
   // we have to write chips in RO increasing order, therefore have to loop over the frames here

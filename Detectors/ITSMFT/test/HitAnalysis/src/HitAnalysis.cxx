@@ -20,18 +20,18 @@
 
 #include "FairLogger.h"               // for LOG
 
-#include "TClonesArray.h"             // for TClonesArray
 #include "TH1.h"                      // for TH1, TH1D, TH1F
 #include "TMath.h"
 
 #include "ITSMFTSimulation/Chip.h"
 #include "ITSMFTSimulation/Hit.h"
-#include "ITSMFTBase/Segmentation.h"
+#include "ITSMFTBase/SegmentationAlpide.h"
 #include "ITSBase/GeometryTGeo.h"
 #include "MathUtils/Cartesian3D.h"
 #include "DetectorsBase/Utils.h"
+#include <vector>
 
-using o2::ITSMFT::Segmentation;
+using Segmentation = o2::ITSMFT::SegmentationAlpide;
 using o2::ITSMFT::Chip;
 using o2::ITSMFT::Hit;
 
@@ -80,8 +80,8 @@ InitStatus HitAnalysis::Init()
     return kERROR;
   }
 
-  mHitsArray = dynamic_cast<TClonesArray *>(mgr->GetObject("ITSHit"));
-  if (!mHitsArray) {
+  mHits = mgr->InitObjectAs<const std::vector<o2::ITSMFT::Hit>*>("ITSHit");
+  if (!mHits) {
     LOG(ERROR) << "ITS points not registered in the FairRootManager. Exiting ..." << FairLogger::endl;
     return kERROR;
   }
@@ -112,14 +112,10 @@ InitStatus HitAnalysis::Init()
 
   // Create histograms
   // Ranges to be adjusted
-  Double_t maxLengthX(-1.), maxLengthY(-1.), maxLengthZ(-1.);
-  const Segmentation *itsseg(nullptr);
-  for (int ily = 0; ily < 7; ily++) {
-    itsseg = mGeometry->getSegmentation(ily);
-    if (itsseg->Dx() > maxLengthX) { maxLengthX = itsseg->Dx(); }
-    if (itsseg->Dy() > maxLengthY) { maxLengthY = itsseg->Dy(); }
-    if (itsseg->Dz() > maxLengthX) { maxLengthZ = itsseg->Dz(); }
-  }
+  Double_t maxLengthX(Segmentation::SensorSizeRows),
+    maxLengthY(Segmentation::SensorThickness),
+    maxLengthZ(Segmentation::SensorSizeCols);
+
   mLineSegment = new TH1D("lineSegment", "Length of the line segment within the chip", 500, 0.0, 0.01);
   mLocalX0 = new TH1D("localX0", "X position in local (chip) coordinates at the start of a hit", 5000, -2 * maxLengthX,
                       2 * maxLengthX);
@@ -147,7 +143,7 @@ void HitAnalysis::Exec(Option_t *option)
   //}
 
   // Add test: Count number of hits in the points array (cannot be larger then the entries in the tree)
-  mHitCounter->Fill(1., mHitsArray->GetEntries());
+  mHitCounter->Fill(1., mHits->size());
 
   if (mProcessChips) {
     ProcessChips();
@@ -175,10 +171,9 @@ void HitAnalysis::ProcessChips()
   }
 
   // Assign hits to chips
-  for (TIter pointIter = TIter(mHitsArray).Begin(); pointIter != TIter::End(); ++pointIter) {
-    Hit *point = static_cast<Hit *>(*pointIter);
+  for(auto& hit : *mHits) {
     try {
-      mChips[point->GetDetectorID()]->InsertHit(point);
+      mChips[hit.GetDetectorID()]->InsertHit(&hit);
     } catch (Chip::IndexException &e) {
       LOG(ERROR) << e.what() << FairLogger::endl;
     }
@@ -189,8 +184,8 @@ void HitAnalysis::ProcessChips()
   for (auto chipiter : mChips) {
     nHitsAssigned += chipiter.second->GetNumberOfHits();
   }
-  if (nHitsAssigned != mHitsArray->GetEntries()) {
-    LOG(ERROR) << "Number of points mismatch: Read(" << mHitsArray->GetEntries() << "), Assigned(" << nHitsAssigned <<
+  if (nHitsAssigned != mHits->size()) {
+    LOG(ERROR) << "Number of points mismatch: Read(" << mHits->size() << "), Assigned(" << nHitsAssigned <<
                ")" << FairLogger::endl;
   }
 
@@ -225,12 +220,11 @@ void HitAnalysis::ProcessChips()
 
 void HitAnalysis::ProcessHits()
 {
-  for (TIter pointiter = TIter(mHitsArray).Begin(); pointiter != TIter::End(); ++pointiter) {
-    Hit *p = static_cast<Hit *>(*pointiter);
-    auto loc = p->GetPos();
-    auto locS = p->GetPosStart();
-    auto glo = mGeometry->getMatrixL2G(p->GetDetectorID())(loc);
-    auto gloS = mGeometry->getMatrixL2G(p->GetDetectorID())(locS);
+  for (auto& hit : *mHits) {
+    auto loc = mGeometry->getMatrixL2G(hit.GetDetectorID())^(hit.GetPos()); // global->local end position
+    auto locS = mGeometry->getMatrixL2G(hit.GetDetectorID())^(hit.GetPosStart()); // global->local start position
+    auto glo = mGeometry->getMatrixL2G(hit.GetDetectorID())(loc);
+    auto gloS = mGeometry->getMatrixL2G(hit.GetDetectorID())(locS);
     mLocalX0->Fill(locS.X());
     mLocalY0->Fill(locS.Y());
     mLocalZ0->Fill(locS.Z());

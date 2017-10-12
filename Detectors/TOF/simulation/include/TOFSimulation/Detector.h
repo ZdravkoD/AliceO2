@@ -11,8 +11,6 @@
 #ifndef ALICEO2_TOF_DETECTOR_H_
 #define ALICEO2_TOF_DETECTOR_H_
 
-#include "TClonesArray.h"
-
 #include "DetectorsBase/Detector.h"
 #include "TOFBase/Geo.h"
 
@@ -51,7 +49,7 @@ class Detector : public o2::Base::Detector
 
   Detector() = default;
 
-  Detector(const char* Name, Bool_t Active);
+  Detector(Bool_t active);
 
   ~Detector() override = default;
 
@@ -98,7 +96,7 @@ class Detector : public o2::Base::Detector
   Bool_t mTOFHoles; // flag to allow for holes in front of the PHOS
 
   /// container for data points
-  TClonesArray* mHitCollection;
+  std::vector<HitType>* mHits; //!
   int mMCTrackBranchId; //! cache for the MCTrackBranchID (to avoid string based query)
 
   ClassDefOverride(Detector, 1);

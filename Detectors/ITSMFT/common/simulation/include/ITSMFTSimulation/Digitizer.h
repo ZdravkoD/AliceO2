@@ -14,11 +14,13 @@
 #define ALICEO2_ITS_DIGITIZER_H
 
 #include <vector>
+#include <memory>
 
 #include "Rtypes.h"  // for Digitizer::Class, Double_t, ClassDef, etc
 #include "TObject.h" // for TObject
 
 #include "ITSMFTSimulation/SimulationAlpide.h"
+#include "ITSMFTSimulation/AlpideSimResponse.h"
 #include "ITSMFTSimulation/DigiParams.h"
 #include "ITSMFTBase/GeometryTGeo.h"
 
@@ -42,7 +44,9 @@ namespace o2
 
       /// Steer conversion of points to digits
       void   process(TClonesArray* points, TClonesArray* digits);
-
+      /// new version
+      void   process(std::vector<Hit>* hits, TClonesArray* digits);
+      
       void   setEventTime(double t);
       double getEventTime()        const  {return mEventTime;}
 
@@ -77,6 +81,8 @@ namespace o2
       UInt_t mROFrameMax = 0;                    ///< highest RO frame of current digits
       int    mCurrSrcID = 0;                     ///< current MC source from the manager
       int    mCurrEvID = 0;                      ///< current event ID from the manager
+
+      std::unique_ptr<o2::ITSMFT::AlpideSimResponse> mAlpSimResp; // simulated response 
       
       ClassDefOverride(Digitizer, 2);
     };

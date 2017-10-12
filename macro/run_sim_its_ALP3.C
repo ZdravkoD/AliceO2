@@ -1,4 +1,4 @@
-#if (!defined(__CINT__) && !defined(__CLING__)) || defined(__MAKECINT__)
+#if !defined(__CLING__) || defined(__ROOTCLING__)
 #include <TSystem.h>
 #include <TMath.h>
 #include <TString.h>
@@ -13,17 +13,11 @@
 #include "DetectorsPassive/Cave.h"
 #include "Field/MagneticField.h"
 #include "ITSBase/GeometryTGeo.h"
-#include "ITSMFTBase/SegmentationPixel.h"
+#include "ITSMFTBase/SegmentationAlpide.h"
 #include "ITSSimulation/Detector.h"
 #endif
 
 extern TSystem *gSystem;
-
-double radii2Turbo(double rMin, double rMid, double rMax, double sensW)
-{
-  // compute turbo angle from radii and sensor width
-  return TMath::ASin((rMax * rMax - rMin * rMin) / (2 * rMid * sensW)) * TMath::RadToDeg();
-}
 
 void run_sim_its_ALP3(Int_t nEvents = 10, TString mcEngine = "TGeant3")
 {
@@ -81,7 +75,7 @@ void run_sim_its_ALP3(Int_t nEvents = 10, TString mcEngine = "TGeant3")
   o2::field::MagneticField field("field","field +5kG");
   run->SetField(&field);
 
-  o2::ITS::Detector* its = new o2::ITS::Detector("ITS", kTRUE);
+  o2::ITS::Detector* its = new o2::ITS::Detector(kTRUE);
   run->AddModule(its);
 
   // Create PrimaryGenerator

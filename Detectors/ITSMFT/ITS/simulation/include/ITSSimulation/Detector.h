@@ -15,16 +15,18 @@
 #define ALICEO2_ITS_DETECTOR_H_
 
 #include "DetectorsBase/Detector.h"   // for Detector
+#include "DetectorsBase/DetID.h"   // for Detector
+#include "ITSMFTSimulation/Hit.h"     // for Hit
 #include "Rtypes.h"          // for Int_t, Double_t, Float_t, Bool_t, etc
 #include "TArrayD.h"         // for TArrayD
 #include "TGeoManager.h"     // for gGeoManager, TGeoManager (ptr only)
 #include "TLorentzVector.h"  // for TLorentzVector
 #include "TVector3.h"        // for TVector3
+#include <vector>            // for vector
 
 class FairModule;
 
 class FairVolume;
-class TClonesArray;
 class TGeoVolume;
 
 class TParticle;
@@ -64,7 +66,7 @@ class Detector : public o2::Base::Detector
     /// Name : Detector Name
     /// Active: kTRUE for active detectors (ProcessHits() will be called)
     ///         kFALSE for inactive detectors
-    Detector(const char *Name, Bool_t Active);
+    Detector(Bool_t active);
 
     /// Default constructor
     Detector();
@@ -153,7 +155,7 @@ class Detector : public o2::Base::Detector
                                     UInt_t &dettype) const;
 
     /// This method is an example of how to add your own point of type Hit to the clones array
-    o2::ITSMFT::Hit *addHit(int trackID, int detID, TVector3 startPos, TVector3 endPos, TVector3 startMom,
+    o2::ITSMFT::Hit *addHit(int trackID, int detID, const TVector3& startPos, const TVector3& endPos, const TVector3& startMom,
 				   double startE, double endTime, double eLoss,
 				   unsigned char startStatus, unsigned char endStatus);
 
@@ -295,8 +297,9 @@ class Detector : public o2::Base::Detector
     UInt_t *mChipTypeID;           //! Vector of detector type id
     Int_t *mBuildLevel;            //! Vector of Material Budget Studies
 
-    /// Container for data points
-    TClonesArray *mHitCollection;
+    /// Container for hit data
+    // TClonesArray *mHitCollection;
+    std::vector<o2::ITSMFT::Hit>* mHits;
 
     /// Creates an air-filled wrapper cylindrical volume
     TGeoVolume *createWrapperVolume(const Int_t nLay);
